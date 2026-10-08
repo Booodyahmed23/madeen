@@ -126,6 +126,7 @@
   "curriculumNoUnits": "لا توجد وحدات متاحة لهذا الجزء بعد.",
   "curriculumNoSubUnits": "لا توجد وحدات فرعية متاحة لهذه الوحدة بعد.",
   "curriculumNoTopics": "لا توجد مواضيع متاحة لهذه الوحدة الفرعية بعد.",
+  "curriculumTopicNoQuestions": "لا توجد أسئلة بعد",
   "curriculumSampleDataNotice": "يتم عرض بيانات تجريبية — خدمة المنهج الدراسي غير متصلة بعد.",
   "studySessionSetupTitle": "إعداد جلسة الدراسة",
   "studySessionSetupTopicLabel": "الموضوع",

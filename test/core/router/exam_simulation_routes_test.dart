@@ -35,6 +35,8 @@ import 'package:mobile/features/performance/domain/entities/performance_overview
 import 'package:mobile/features/performance/domain/repositories/performance_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../features/curriculum/curriculum_test_tree.dart';
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 class MockCurriculumRepository extends Mock implements CurriculumRepository {}
@@ -123,14 +125,18 @@ void main() {
 
     final curriculumRepository = MockCurriculumRepository();
     when(() => curriculumRepository.getPrograms()).thenAnswer(
-      (_) async => const Result.success([
-        Program(id: 'program-cma', name: 'CMA', code: 'CMA'),
-      ]),
+      (_) async =>
+          const Result.success([Program(id: 'program-cma', name: 'CMA')]),
     );
-    when(() => curriculumRepository.getParts('program-cma')).thenAnswer(
-      (_) async => const Result.success([
-        Part(id: 'cma-part-1', programId: 'program-cma', name: 'Part 1'),
-      ]),
+    when(() => curriculumRepository.getProgramTree('program-cma')).thenAnswer(
+      (_) async => Result.success(
+        testCurriculumTree(
+          program: const Program(id: 'program-cma', name: 'CMA'),
+          parts: const [
+            Part(id: 'cma-part-1', programId: 'program-cma', name: 'Part 1'),
+          ],
+        ),
+      ),
     );
 
     final examRepository = MockExamRepository();

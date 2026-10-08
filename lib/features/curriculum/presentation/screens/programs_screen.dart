@@ -45,8 +45,8 @@ class ProgramsScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(MadeenRadius.base),
                   ),
                   child: Text(
-                    program.code.isNotEmpty
-                        ? program.code.substring(0, 1)
+                    program.name.isNotEmpty
+                        ? program.name.characters.first
                         : '?',
                     style: MadeenType.headlineMd.copyWith(
                       color: MadeenTokens.of(context).heroAccent,

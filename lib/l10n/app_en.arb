@@ -273,6 +273,8 @@
   "@curriculumNoSubUnits": {},
   "curriculumNoTopics": "No topics are available for this sub-unit yet.",
   "@curriculumNoTopics": {},
+  "curriculumTopicNoQuestions": "No questions yet",
+  "@curriculumTopicNoQuestions": {},
   "curriculumSampleDataNotice": "Showing sample data — the curriculum service isn't connected yet.",
   "@curriculumSampleDataNotice": {},
   "studySessionSetupTitle": "Study Session Setup",

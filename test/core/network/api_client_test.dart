@@ -88,38 +88,40 @@ void main() {
     );
   });
 
-  test('postWithHeaders exposes response headers and sends request headers',
-      () async {
-    RequestOptions? sent;
-    final dio = Dio()
-      ..httpClientAdapter = _Adapter(
-        () async => ResponseBody.fromString(
-          jsonEncode({'accessToken': 'a'}),
-          200,
-          headers: {
-            Headers.contentTypeHeader: [Headers.jsonContentType],
-            'set-cookie': ['refresh_token=r2; Path=/api/v1/auth; HttpOnly'],
+  test(
+    'postWithHeaders exposes response headers and sends request headers',
+    () async {
+      RequestOptions? sent;
+      final dio = Dio()
+        ..httpClientAdapter = _Adapter(
+          () async => ResponseBody.fromString(
+            jsonEncode({'accessToken': 'a'}),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+              'set-cookie': ['refresh_token=r2; Path=/api/v1/auth; HttpOnly'],
+            },
+          ),
+        );
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            sent = options;
+            handler.next(options);
           },
         ),
       );
-    dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) {
-          sent = options;
-          handler.next(options);
-        },
-      ),
-    );
 
-    final cookie = await ApiClient(dio).postWithHeaders(
-      '/auth/refresh',
-      headers: {'Cookie': 'refresh_token=r1'},
-      parse: (_, headers) => headers['set-cookie']!.single,
-    );
+      final cookie = await ApiClient(dio).postWithHeaders(
+        '/auth/refresh',
+        headers: {'Cookie': 'refresh_token=r1'},
+        parse: (_, headers) => headers['set-cookie']!.single,
+      );
 
-    expect(sent!.headers['Cookie'], 'refresh_token=r1');
-    expect(cookie, startsWith('refresh_token=r2'));
-  });
+      expect(sent!.headers['Cookie'], 'refresh_token=r1');
+      expect(cookie, startsWith('refresh_token=r2'));
+    },
+  );
 
   test('joins class-validator message arrays', () async {
     final call = _client(

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/curriculum/data/models/curriculum_tree_model.dart';
 import 'package:mobile/features/curriculum/data/models/part_model.dart';
 import 'package:mobile/features/curriculum/data/models/program_model.dart';
 import 'package:mobile/features/curriculum/data/models/sub_unit_model.dart';
@@ -7,52 +8,128 @@ import 'package:mobile/features/curriculum/data/models/unit_model.dart';
 
 void main() {
   group('ProgramModel.fromJson', () {
-    test('parses a fully-populated program', () {
+    test('parses an API program node (no code or imageUrl)', () {
       final model = ProgramModel.fromJson({
-        'id': 'program-cma',
-        'name': 'CMA',
-        'code': 'CMA',
-        'description': 'Certified Management Accountant',
-        'imageUrl': 'https://example.com/cma.png',
+        'id': '72ff5583-483d-4fd2-ade8-02dce9fd321b',
+        'name': 'CMA (Demo)',
+        'description': 'Sample curriculum for development.',
         'order': 1,
-        'isActive': true,
+        'isPublished': true,
+        'createdAt': '2026-09-27T08:18:13.573Z',
+        'updatedAt': '2026-09-29T11:45:05.570Z',
       });
 
-      expect(model.id, 'program-cma');
-      expect(model.name, 'CMA');
-      expect(model.code, 'CMA');
-      expect(model.description, 'Certified Management Accountant');
-      expect(model.imageUrl, 'https://example.com/cma.png');
+      expect(model.name, 'CMA (Demo)');
+      expect(model.description, 'Sample curriculum for development.');
       expect(model.order, 1);
-      expect(model.isActive, true);
+      expect(model.isPublished, isTrue);
     });
 
-    test('treats optional fields as absent without failing', () {
+    test('a null description is fine', () {
       final model = ProgramModel.fromJson({
-        'id': 'program-fmaa',
+        'id': 'p',
         'name': 'FMAA',
-        'code': 'FMAA',
+        'description': null,
+        'order': 0,
+        'isPublished': true,
       });
 
       expect(model.description, isNull);
-      expect(model.imageUrl, isNull);
-      expect(model.order, 0);
-      expect(model.isActive, isNull);
+      expect(model.toEntity().name, 'FMAA');
+    });
+  });
+
+  group('CurriculumTreeModel.fromJson', () {
+    final json = {
+      'id': 'program-cma',
+      'name': 'CMA',
+      'description': null,
+      'order': 0,
+      'isPublished': true,
+      'parts': [
+        {
+          'id': 'part-2',
+          'programId': 'program-cma',
+          'name': 'Part 2',
+          'order': 1,
+          'units': <Object>[],
+        },
+        {
+          'id': 'part-1',
+          'programId': 'program-cma',
+          'name': 'Part 1',
+          'order': 0,
+          'units': [
+            {
+              'id': 'unit-1',
+              'partId': 'part-1',
+              'name': 'Cost Management',
+              'order': 0,
+              'subUnits': [
+                {
+                  'id': 'sub-1',
+                  'unitId': 'unit-1',
+                  'name': 'Variance Analysis',
+                  'order': 0,
+                  'topics': [
+                    {
+                      'id': 'topic-b',
+                      'subUnitId': 'sub-1',
+                      'name': 'Labor Variances',
+                      'order': 1,
+                      'questionCounts': {
+                        'DRAFT': 1,
+                        'PUBLISHED': 0,
+                        'ARCHIVED': 0,
+                      },
+                    },
+                    {
+                      'id': 'topic-a',
+                      'subUnitId': 'sub-1',
+                      'name': 'Material Variances',
+                      'order': 0,
+                      'questionCounts': {
+                        'DRAFT': 0,
+                        'PUBLISHED': 42,
+                        'ARCHIVED': 0,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    test('builds every level, sorted by order', () {
+      final tree = CurriculumTreeModel.fromJson(json).toEntity();
+
+      expect(tree.parts.map((p) => p.id), ['part-1', 'part-2']);
+      expect(tree.unitsOf('part-1').single.name, 'Cost Management');
+      expect(tree.subUnitsOf('unit-1').single.name, 'Variance Analysis');
+      expect(tree.topicsOf('sub-1').map((t) => t.id), ['topic-a', 'topic-b']);
+      expect(tree.unitsOf('part-2'), isEmpty);
     });
 
-    test('toEntity maps every field onto the domain entity unchanged', () {
-      final model = ProgramModel.fromJson({
-        'id': 'program-cma',
-        'name': 'CMA',
-        'code': 'CMA',
-        'order': 2,
-      });
-      final entity = model.toEntity();
+    test('reads questionCounts.PUBLISHED and flags empty topics', () {
+      final tree = CurriculumTreeModel.fromJson(json).toEntity();
 
-      expect(entity.id, model.id);
-      expect(entity.name, model.name);
-      expect(entity.code, model.code);
-      expect(entity.order, 2);
+      expect(tree.topicById('topic-a')!.publishedQuestionCount, 42);
+      expect(tree.topicById('topic-a')!.hasQuestions, isTrue);
+      expect(tree.topicById('topic-b')!.hasQuestions, isFalse);
+    });
+
+    test('topicIdsUnder resolves any node to its topics with questions', () {
+      final tree = CurriculumTreeModel.fromJson(json).toEntity();
+
+      for (final node in ['program-cma', 'part-1', 'unit-1', 'sub-1']) {
+        expect(tree.topicIdsUnder(node), ['topic-a'], reason: node);
+      }
+      expect(tree.topicIdsUnder('topic-a'), ['topic-a']);
+      expect(tree.topicIdsUnder('part-2'), isEmpty);
+      expect(tree.topicIdsUnder('unknown'), isEmpty);
     });
   });
 
@@ -100,6 +177,17 @@ void main() {
   });
 
   group('TopicModel.fromJson', () {
+    test('a topic from a level endpoint has no question count', () {
+      final model = TopicModel.fromJson({
+        'id': 'topic-1',
+        'subUnitId': 'subunit-1',
+        'name': 'Flexible Budget',
+      });
+
+      expect(model.publishedQuestionCount, isNull);
+      expect(model.toEntity().hasQuestions, isTrue);
+    });
+
     test('parses required and optional fields', () {
       final model = TopicModel.fromJson({
         'id': 'topic-1',

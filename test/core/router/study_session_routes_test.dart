@@ -39,6 +39,8 @@ import 'package:mobile/features/performance/domain/entities/performance_overview
 import 'package:mobile/features/performance/domain/repositories/performance_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../features/curriculum/curriculum_test_tree.dart';
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 class MockCurriculumRepository extends Mock implements CurriculumRepository {}
@@ -126,39 +128,36 @@ void main() {
 
       final curriculumRepository = MockCurriculumRepository();
       when(() => curriculumRepository.getPrograms()).thenAnswer(
-        (_) async => const Result.success([
-          Program(id: 'program-cma', name: 'CMA', code: 'CMA'),
-        ]),
+        (_) async =>
+            const Result.success([Program(id: 'program-cma', name: 'CMA')]),
       );
-      when(() => curriculumRepository.getParts('program-cma')).thenAnswer(
-        (_) async => const Result.success([
-          Part(id: 'part-1', programId: 'program-cma', name: 'Part 1'),
-        ]),
-      );
-      when(() => curriculumRepository.getUnits('part-1')).thenAnswer(
-        (_) async => const Result.success([
-          Unit(id: 'unit-fp', partId: 'part-1', name: 'Financial Planning'),
-        ]),
-      );
-      when(() => curriculumRepository.getSubUnits('unit-fp')).thenAnswer(
-        (_) async => const Result.success([
-          SubUnit(
-            id: 'subunit-budgeting',
-            unitId: 'unit-fp',
-            name: 'Budgeting',
-          ),
-        ]),
-      );
-      when(() => curriculumRepository.getTopics('subunit-budgeting'))
-          .thenAnswer(
-            (_) async => const Result.success([
+      when(() => curriculumRepository.getProgramTree('program-cma')).thenAnswer(
+        (_) async => Result.success(
+          testCurriculumTree(
+            program: const Program(id: 'program-cma', name: 'CMA'),
+            parts: const [
+              Part(id: 'part-1', programId: 'program-cma', name: 'Part 1'),
+            ],
+            units: const [
+              Unit(id: 'unit-fp', partId: 'part-1', name: 'Financial Planning'),
+            ],
+            subUnits: const [
+              SubUnit(
+                id: 'subunit-budgeting',
+                unitId: 'unit-fp',
+                name: 'Budgeting',
+              ),
+            ],
+            topics: const [
               Topic(
                 id: 'topic-flexible-budget',
                 subUnitId: 'subunit-budgeting',
                 name: 'Flexible Budget',
               ),
-            ]),
-          );
+            ],
+          ),
+        ),
+      );
 
       final studySessionRepository = MockStudySessionRepository();
       when(() => studySessionRepository.startSession(any()))

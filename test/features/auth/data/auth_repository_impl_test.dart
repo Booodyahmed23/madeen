@@ -35,9 +35,8 @@ void main() {
 
     when(() => secureStorage.saveRefreshToken(any())).thenAnswer((_) async {});
     when(() => secureStorage.clear()).thenAnswer((_) async {});
-    when(
-      () => remote.getCurrentUser(accessToken: any(named: 'accessToken')),
-    ).thenAnswer((_) async => profile);
+    when(() => remote.getCurrentUser(accessToken: any(named: 'accessToken')))
+        .thenAnswer((_) async => profile);
   });
 
   group('register / login', () {
@@ -67,9 +66,8 @@ void main() {
         verify(() => secureStorage.saveRefreshToken('refresh-token-1'))
             .called(1);
         // Register returns no user: it is loaded with the new token.
-        verify(
-          () => remote.getCurrentUser(accessToken: 'access-token-1'),
-        ).called(1);
+        verify(() => remote.getCurrentUser(accessToken: 'access-token-1'))
+            .called(1);
       },
     );
 
@@ -151,9 +149,8 @@ void main() {
       expect(session, isNotNull);
       expect(session!.user.id, 'user-1');
       verify(() => secureStorage.saveRefreshToken('refresh-token-1')).called(1);
-      verify(
-        () => remote.getCurrentUser(accessToken: 'access-token-1'),
-      ).called(1);
+      verify(() => remote.getCurrentUser(accessToken: 'access-token-1'))
+          .called(1);
     });
 
     test('a failed profile load after a good refresh keeps the rotated '
@@ -162,9 +159,8 @@ void main() {
           .thenAnswer((_) async => 'stored-refresh');
       when(() => remote.refresh('stored-refresh'))
           .thenAnswer((_) async => response);
-      when(
-        () => remote.getCurrentUser(accessToken: any(named: 'accessToken')),
-      ).thenThrow(const ApiException(statusCode: 0, message: 'offline'));
+      when(() => remote.getCurrentUser(accessToken: any(named: 'accessToken')))
+          .thenThrow(const ApiException(statusCode: 0, message: 'offline'));
 
       await expectLater(
         repository.restoreSession(),
@@ -250,28 +246,30 @@ void main() {
   });
 
   group('changePassword', () {
-    test('saves the new refresh token and returns the new access token',
-        () async {
-      when(
-        () => remote.changePassword(
+    test(
+      'saves the new refresh token and returns the new access token',
+      () async {
+        when(
+          () => remote.changePassword(
+            currentPassword: 'old-pass',
+            newPassword: 'new-pass-123',
+          ),
+        ).thenAnswer(
+          (_) async => const AuthTokensModel(
+            accessToken: 'access-2',
+            refreshToken: 'refresh-2',
+          ),
+        );
+
+        final result = await repository.changePassword(
           currentPassword: 'old-pass',
           newPassword: 'new-pass-123',
-        ),
-      ).thenAnswer(
-        (_) async => const AuthTokensModel(
-          accessToken: 'access-2',
-          refreshToken: 'refresh-2',
-        ),
-      );
+        );
 
-      final result = await repository.changePassword(
-        currentPassword: 'old-pass',
-        newPassword: 'new-pass-123',
-      );
-
-      expect((result as Success).value, 'access-2');
-      verify(() => secureStorage.saveRefreshToken('refresh-2')).called(1);
-    });
+        expect((result as Success).value, 'access-2');
+        verify(() => secureStorage.saveRefreshToken('refresh-2')).called(1);
+      },
+    );
 
     test('keeps the WRONG_CURRENT_PASSWORD code', () async {
       when(
@@ -327,8 +325,7 @@ void main() {
   });
 
   group('resetPassword', () {
-    test('clears the local session (the server revoked all of them)',
-        () async {
+    test('clears the local session (the server revoked all of them)', () async {
       when(
         () => remote.confirmPasswordReset(
           token: 'tok',
@@ -348,17 +345,16 @@ void main() {
 
   group('getCurrentUser', () {
     test('maps the /auth/me profile onto an AuthUser', () async {
-      when(
-        () => remote.getCurrentUser(accessToken: any(named: 'accessToken')),
-      ).thenAnswer(
-        (_) async => const UserProfileModel(
-          id: 'user-1',
-          email: 'jane@example.com',
-          firstName: 'Janet',
-          lastName: 'Doe',
-          role: 'USER',
-        ),
-      );
+      when(() => remote.getCurrentUser(accessToken: any(named: 'accessToken')))
+          .thenAnswer(
+            (_) async => const UserProfileModel(
+              id: 'user-1',
+              email: 'jane@example.com',
+              firstName: 'Janet',
+              lastName: 'Doe',
+              role: 'USER',
+            ),
+          );
 
       final result = await repository.getCurrentUser();
 

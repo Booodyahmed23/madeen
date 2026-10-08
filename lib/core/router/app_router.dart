@@ -62,20 +62,20 @@ abstract final class AppRoutes {
   static const forgotPassword = '/forgot-password';
   static const resetPassword = '/reset-password';
 
-  // Curriculum (Phase 3) — each level's path only needs its own parent's id
-  // (matching what the data layer actually fetches with); display context
-  // for the AppBar travels separately via `extra`, not the URL, since the
-  // grandparent names aren't needed to fetch anything (see
-  // CurriculumAppBarTitle / CURRICULUM_API_REQUIREMENTS.md).
+  // Curriculum — each level's path carries the program id (whose tree,
+  // loaded in one call, every level is read from) and its own parent's id;
+  // display context for the AppBar travels separately via `extra`, not the
+  // URL, since the parent names aren't needed to fetch anything (see
+  // CurriculumAppBarTitle).
   static const curriculum = '/curriculum';
   static String curriculumParts(String programId) =>
       '/curriculum/programs/$programId/parts';
-  static String curriculumUnits(String partId) =>
-      '/curriculum/parts/$partId/units';
-  static String curriculumSubUnits(String unitId) =>
-      '/curriculum/units/$unitId/sub-units';
-  static String curriculumTopics(String subUnitId) =>
-      '/curriculum/sub-units/$subUnitId/topics';
+  static String curriculumUnits(String programId, String partId) =>
+      '/curriculum/programs/$programId/parts/$partId/units';
+  static String curriculumSubUnits(String programId, String unitId) =>
+      '/curriculum/programs/$programId/units/$unitId/sub-units';
+  static String curriculumTopics(String programId, String subUnitId) =>
+      '/curriculum/programs/$programId/sub-units/$subUnitId/topics';
   static String curriculumTopicDetail(String topicId) =>
       '/curriculum/topics/$topicId';
 
@@ -260,22 +260,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: '/curriculum/parts/:partId/units',
+        path: '/curriculum/programs/:programId/parts/:partId/units',
         builder: (context, state) => UnitsScreen(
+          programId: state.pathParameters['programId']!,
           partId: state.pathParameters['partId']!,
           partName: state.extra as String?,
         ),
       ),
       GoRoute(
-        path: '/curriculum/units/:unitId/sub-units',
+        path: '/curriculum/programs/:programId/units/:unitId/sub-units',
         builder: (context, state) => SubUnitsScreen(
+          programId: state.pathParameters['programId']!,
           unitId: state.pathParameters['unitId']!,
           unitName: state.extra as String?,
         ),
       ),
       GoRoute(
-        path: '/curriculum/sub-units/:subUnitId/topics',
+        path: '/curriculum/programs/:programId/sub-units/:subUnitId/topics',
         builder: (context, state) => TopicsScreen(
+          programId: state.pathParameters['programId']!,
           subUnitId: state.pathParameters['subUnitId']!,
           subUnitName: state.extra as String?,
         ),

@@ -1,3 +1,4 @@
+import '../models/curriculum_tree_model.dart';
 import '../models/part_model.dart';
 import '../models/program_model.dart';
 import '../models/sub_unit_model.dart';
@@ -5,42 +6,66 @@ import '../models/topic_model.dart';
 import '../models/unit_model.dart';
 import 'curriculum_data_source.dart';
 
-/// Local sample data — used only because the real Curriculum API does not
-/// exist yet (see CURRICULUM_API_REQUIREMENTS.md). This is a UI-development
+/// Local sample data, used while `CURRICULUM_API_AVAILABLE` is off. This is
+/// a UI-development
 /// aid, **not** production content: the data is small, hand-written, and
 /// intentionally leaves some nodes childless so the empty state has
 /// something real to render against. Selected automatically when
 /// `AppConfig.isCurriculumApiAvailable` is `false` (the default) — see
 /// curriculum_providers.dart.
 class CurriculumMockDataSource implements CurriculumDataSource {
-  static const _artificialDelay = Duration(milliseconds: 400);
+  CurriculumMockDataSource({this.delay = const Duration(milliseconds: 400)});
+
+  /// Simulated network latency for each call.
+  final Duration delay;
+
+  @override
+  Future<CurriculumTreeModel> getProgramTree(String programId) async {
+    await Future<void>.delayed(delay);
+    // Assembled from the per-level sample data, with one delay for the
+    // whole tree — like the real single call.
+    final levels = CurriculumMockDataSource(delay: Duration.zero);
+    final program = (await levels.getPrograms()).firstWhere(
+      (p) => p.id == programId,
+    );
+    final parts = await levels.getParts(programId);
+    final units = [for (final part in parts) ...await levels.getUnits(part.id)];
+    final subUnits = [
+      for (final unit in units) ...await levels.getSubUnits(unit.id),
+    ];
+    final topics = [
+      for (final subUnit in subUnits) ...await levels.getTopics(subUnit.id),
+    ];
+    return CurriculumTreeModel(
+      program: program,
+      parts: parts,
+      units: units,
+      subUnits: subUnits,
+      topics: topics,
+    );
+  }
 
   @override
   Future<List<ProgramModel>> getPrograms() async {
-    await Future<void>.delayed(_artificialDelay);
+    await Future<void>.delayed(delay);
     return const [
       ProgramModel(
         id: 'program-cma',
         name: 'CMA',
-        code: 'CMA',
         description: 'Certified Management Accountant',
         order: 0,
-        isActive: true,
       ),
       ProgramModel(
         id: 'program-fmaa',
         name: 'FMAA',
-        code: 'FMAA',
         description: 'Financial Management & Accounting Association',
         order: 1,
-        isActive: true,
       ),
     ];
   }
 
-  @override
   Future<List<PartModel>> getParts(String programId) async {
-    await Future<void>.delayed(_artificialDelay);
+    await Future<void>.delayed(delay);
     switch (programId) {
       case 'program-cma':
         return const [
@@ -73,9 +98,8 @@ class CurriculumMockDataSource implements CurriculumDataSource {
     }
   }
 
-  @override
   Future<List<UnitModel>> getUnits(String partId) async {
-    await Future<void>.delayed(_artificialDelay);
+    await Future<void>.delayed(delay);
     switch (partId) {
       case 'cma-part-1':
         return const [
@@ -130,9 +154,8 @@ class CurriculumMockDataSource implements CurriculumDataSource {
     }
   }
 
-  @override
   Future<List<SubUnitModel>> getSubUnits(String unitId) async {
-    await Future<void>.delayed(_artificialDelay);
+    await Future<void>.delayed(delay);
     switch (unitId) {
       case 'unit-financial-planning':
         return const [
@@ -165,9 +188,8 @@ class CurriculumMockDataSource implements CurriculumDataSource {
     }
   }
 
-  @override
   Future<List<TopicModel>> getTopics(String subUnitId) async {
-    await Future<void>.delayed(_artificialDelay);
+    await Future<void>.delayed(delay);
     switch (subUnitId) {
       case 'subunit-budgeting':
         return const [

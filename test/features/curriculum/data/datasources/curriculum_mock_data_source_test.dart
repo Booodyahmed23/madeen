@@ -4,12 +4,12 @@ import 'package:mobile/features/curriculum/data/datasources/curriculum_mock_data
 void main() {
   late CurriculumMockDataSource dataSource;
 
-  setUp(() => dataSource = CurriculumMockDataSource());
+  setUp(() => dataSource = CurriculumMockDataSource(delay: Duration.zero));
 
   test('returns both CMA and FMAA programs', () async {
     final programs = await dataSource.getPrograms();
 
-    expect(programs.map((p) => p.code), containsAll(['CMA', 'FMAA']));
+    expect(programs.map((p) => p.name), containsAll(['CMA', 'FMAA']));
   });
 
   test('CMA Part 1 has the five units named in the product brief', () async {
@@ -43,5 +43,13 @@ void main() {
 
     expect(subUnits, isEmpty);
     expect(units, isEmpty);
+  });
+
+  test('the program tree assembles every level', () async {
+    final tree = (await dataSource.getProgramTree('program-cma')).toEntity();
+
+    expect(tree.parts.map((p) => p.id), ['cma-part-1', 'cma-part-2']);
+    expect(tree.unitsOf('cma-part-1'), hasLength(5));
+    expect(tree.topicsOf('subunit-budgeting'), hasLength(3));
   });
 }

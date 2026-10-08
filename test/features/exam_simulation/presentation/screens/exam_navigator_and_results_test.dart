@@ -17,6 +17,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:mobile/features/exam_simulation/presentation/widgets/exam_countdown_display.dart';
 
 import '../../exam_simulation_test_harness.dart';
+import '../../../curriculum/curriculum_test_tree.dart';
 
 class MockExamRepository extends Mock implements ExamRepository {}
 
@@ -107,14 +108,18 @@ Future<void> _startExam(
   if (tall) useTallSurface(tester);
   final curriculum = MockCurriculumRepository();
   when(() => curriculum.getPrograms()).thenAnswer(
-    (_) async => const Result.success([
-      Program(id: 'program-cma', name: 'CMA', code: 'CMA'),
-    ]),
+    (_) async =>
+        const Result.success([Program(id: 'program-cma', name: 'CMA')]),
   );
-  when(() => curriculum.getParts('program-cma')).thenAnswer(
-    (_) async => const Result.success([
-      Part(id: 'cma-part-1', programId: 'program-cma', name: 'Part 1'),
-    ]),
+  when(() => curriculum.getProgramTree('program-cma')).thenAnswer(
+    (_) async => Result.success(
+      testCurriculumTree(
+        program: const Program(id: 'program-cma', name: 'CMA'),
+        parts: const [
+          Part(id: 'cma-part-1', programId: 'program-cma', name: 'Part 1'),
+        ],
+      ),
+    ),
   );
   when(() => _exam.startExam(any())).thenAnswer(
     (_) async => Result.success(_attempt(durationSeconds: durationSeconds)),

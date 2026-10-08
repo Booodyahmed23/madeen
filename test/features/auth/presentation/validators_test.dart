@@ -93,10 +93,7 @@ void main() {
 
     testWidgets('rejects an email longer than 254 characters', (tester) async {
       await _withContext(tester, (context) {
-        expect(
-          AuthValidators.email(context, '${'a' * 250}@b.co'),
-          isNotNull,
-        );
+        expect(AuthValidators.email(context, '${'a' * 250}@b.co'), isNotNull);
       });
     });
 

@@ -217,9 +217,8 @@ void main() {
       when(() => repository.restoreSession()).thenAnswer((_) async => _session);
       await initializeAndSettle();
 
-      when(
-        () => repository.refreshAccessToken(),
-      ).thenAnswer((_) async => 'access-token-2');
+      when(() => repository.refreshAccessToken())
+          .thenAnswer((_) async => 'access-token-2');
       final token = await container
           .read(authNotifierProvider.notifier)
           .silentRefresh();

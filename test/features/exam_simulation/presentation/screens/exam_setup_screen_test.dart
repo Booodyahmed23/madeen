@@ -18,6 +18,7 @@ import 'package:mobile/features/exam_simulation/domain/repositories/exam_reposit
 import 'package:mocktail/mocktail.dart';
 
 import '../../exam_simulation_test_harness.dart';
+import '../../../curriculum/curriculum_test_tree.dart';
 
 class MockExamRepository extends Mock implements ExamRepository {}
 
@@ -42,14 +43,18 @@ void main() {
   setUp(() {
     curriculumRepository = MockCurriculumRepository();
     when(() => curriculumRepository.getPrograms()).thenAnswer(
-      (_) async => const Result.success([
-        Program(id: 'program-cma', name: 'CMA', code: 'CMA'),
-      ]),
+      (_) async =>
+          const Result.success([Program(id: 'program-cma', name: 'CMA')]),
     );
-    when(() => curriculumRepository.getParts('program-cma')).thenAnswer(
-      (_) async => const Result.success([
-        Part(id: 'cma-part-1', programId: 'program-cma', name: 'Part 1'),
-      ]),
+    when(() => curriculumRepository.getProgramTree('program-cma')).thenAnswer(
+      (_) async => Result.success(
+        testCurriculumTree(
+          program: const Program(id: 'program-cma', name: 'CMA'),
+          parts: const [
+            Part(id: 'cma-part-1', programId: 'program-cma', name: 'Part 1'),
+          ],
+        ),
+      ),
     );
   });
 
@@ -265,25 +270,30 @@ void main() {
     'configuration',
     (tester) async {
       useTallSurface(tester);
-      when(() => curriculumRepository.getUnits('cma-part-1')).thenAnswer(
-        (_) async => const Result.success([
-          Unit(
-            id: 'unit-financial-planning',
-            partId: 'cma-part-1',
-            name: 'Financial Planning',
-          ),
-        ]),
-      );
-      when(() => curriculumRepository.getSubUnits('unit-financial-planning'))
-          .thenAnswer(
-            (_) async => const Result.success([
+      when(() => curriculumRepository.getProgramTree('program-cma')).thenAnswer(
+        (_) async => Result.success(
+          testCurriculumTree(
+            program: const Program(id: 'program-cma', name: 'CMA'),
+            parts: const [
+              Part(id: 'cma-part-1', programId: 'program-cma', name: 'Part 1'),
+            ],
+            units: const [
+              Unit(
+                id: 'unit-financial-planning',
+                partId: 'cma-part-1',
+                name: 'Financial Planning',
+              ),
+            ],
+            subUnits: const [
               SubUnit(
                 id: 'subunit-budgeting',
                 unitId: 'unit-financial-planning',
                 name: 'Budgeting',
               ),
-            ]),
-          );
+            ],
+          ),
+        ),
+      );
       final examRepository = MockExamRepository();
       when(() => examRepository.startExam(any()))
           .thenAnswer((_) async => const Result.failure(NetworkFailure()));

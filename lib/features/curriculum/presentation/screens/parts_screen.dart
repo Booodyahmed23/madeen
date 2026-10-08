@@ -40,12 +40,13 @@ class PartsScreen extends ConsumerWidget {
             child: AsyncListView<Part>(
               value: parts,
               emptyMessage: l10n.curriculumNoParts,
-              onRetry: () async => ref.invalidate(partsProvider(programId)),
+              onRetry: () async =>
+                  ref.invalidate(programTreeProvider(programId)),
               itemBuilder: (context, part) => CurriculumListTile(
                 title: part.name,
                 subtitle: part.description,
                 onTap: () => context.push(
-                  AppRoutes.curriculumUnits(part.id),
+                  AppRoutes.curriculumUnits(programId, part.id),
                   extra: part.name,
                 ),
               ),

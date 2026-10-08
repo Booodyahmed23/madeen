@@ -14,15 +14,23 @@ import '../../../../core/config/app_config.dart';
 import '../../../../shared/widgets/sample_data_banner.dart';
 
 class TopicsScreen extends ConsumerWidget {
-  const TopicsScreen({super.key, required this.subUnitId, this.subUnitName});
+  const TopicsScreen({
+    super.key,
+    required this.programId,
+    required this.subUnitId,
+    this.subUnitName,
+  });
 
+  final String programId;
   final String subUnitId;
   final String? subUnitName;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    final topics = ref.watch(topicsProvider(subUnitId));
+    final topics = ref.watch(
+      topicsProvider((programId: programId, subUnitId: subUnitId)),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -41,20 +49,26 @@ class TopicsScreen extends ConsumerWidget {
             child: AsyncListView<Topic>(
               value: topics,
               emptyMessage: l10n.curriculumNoTopics,
-              onRetry: () async => ref.invalidate(topicsProvider(subUnitId)),
+              onRetry: () async =>
+                  ref.invalidate(programTreeProvider(programId)),
               itemBuilder: (context, topic) => CurriculumListTile(
                 title: topic.name,
-                subtitle: topic.description,
+                subtitle: topic.hasQuestions
+                    ? topic.description
+                    : l10n.curriculumTopicNoQuestions,
                 leading: Icon(
                   Icons.article_outlined,
                   color: MadeenTokens.of(context).accentText,
                 ),
-                // Leaf node: the future Question Bank / Study Session entry
-                // point. Not implemented yet — see the destination screen.
-                onTap: () => context.push(
-                  AppRoutes.curriculumTopicDetail(topic.id),
-                  extra: topic.name,
-                ),
+                // Leaf node: opens Study Session setup. A topic with no
+                // published questions has nothing to study, so it's
+                // disabled rather than leading to an empty session.
+                onTap: topic.hasQuestions
+                    ? () => context.push(
+                        AppRoutes.curriculumTopicDetail(topic.id),
+                        extra: topic.name,
+                      )
+                    : null,
               ),
             ),
           ),

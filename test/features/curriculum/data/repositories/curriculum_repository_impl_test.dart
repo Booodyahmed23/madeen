@@ -3,8 +3,10 @@ import 'package:mobile/core/error/app_failure.dart';
 import 'package:mobile/core/error/result.dart';
 import 'package:mobile/core/network/api_exception.dart';
 import 'package:mobile/features/curriculum/data/datasources/curriculum_data_source.dart';
+import 'package:mobile/features/curriculum/data/models/curriculum_tree_model.dart';
 import 'package:mobile/features/curriculum/data/models/program_model.dart';
 import 'package:mobile/features/curriculum/data/repositories/curriculum_repository_impl.dart';
+import 'package:mobile/features/curriculum/domain/entities/curriculum_tree.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockCurriculumDataSource extends Mock implements CurriculumDataSource {}
@@ -21,9 +23,7 @@ void main() {
   group('getPrograms — success', () {
     test('maps data-source models onto domain entities', () async {
       when(() => dataSource.getPrograms()).thenAnswer(
-        (_) async => const [
-          ProgramModel(id: 'program-cma', name: 'CMA', code: 'CMA'),
-        ],
+        (_) async => const [ProgramModel(id: 'program-cma', name: 'CMA')],
       );
 
       final result = await repository.getPrograms();
@@ -97,26 +97,37 @@ void main() {
     });
   });
 
-  group('getParts / getUnits / getSubUnits / getTopics', () {
-    test('forward the parent id to the data source unchanged', () async {
-      when(() => dataSource.getParts('program-cma'))
-          .thenAnswer((_) async => const []);
-      when(() => dataSource.getUnits('cma-part-1'))
-          .thenAnswer((_) async => const []);
-      when(() => dataSource.getSubUnits('unit-1'))
-          .thenAnswer((_) async => const []);
-      when(() => dataSource.getTopics('subunit-1'))
-          .thenAnswer((_) async => const []);
+  group('getProgramTree', () {
+    test('maps the tree model onto the domain tree', () async {
+      when(() => dataSource.getProgramTree('program-cma')).thenAnswer(
+        (_) async => CurriculumTreeModel.fromJson({
+          'id': 'program-cma',
+          'name': 'CMA',
+          'parts': [
+            {
+              'id': 'part-1',
+              'programId': 'program-cma',
+              'name': 'Part 1',
+              'units': <Object>[],
+            },
+          ],
+        }),
+      );
 
-      await repository.getParts('program-cma');
-      await repository.getUnits('cma-part-1');
-      await repository.getSubUnits('unit-1');
-      await repository.getTopics('subunit-1');
+      final result = await repository.getProgramTree('program-cma');
 
-      verify(() => dataSource.getParts('program-cma')).called(1);
-      verify(() => dataSource.getUnits('cma-part-1')).called(1);
-      verify(() => dataSource.getSubUnits('unit-1')).called(1);
-      verify(() => dataSource.getTopics('subunit-1')).called(1);
+      final tree = (result as Success).value as CurriculumTree;
+      expect(tree.program.name, 'CMA');
+      expect(tree.parts.single.id, 'part-1');
+    });
+
+    test('maps a 404 (unpublished program) onto NotFoundFailure', () async {
+      when(() => dataSource.getProgramTree(any()))
+          .thenThrow(const ApiException(statusCode: 404, message: 'Not found'));
+
+      final result = await repository.getProgramTree('gone');
+
+      expect((result as Failure).failure, isA<NotFoundFailure>());
     });
   });
 }

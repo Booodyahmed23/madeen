@@ -52,8 +52,8 @@ void main() {
     final repository = MockCurriculumRepository();
     when(() => repository.getPrograms()).thenAnswer(
       (_) async => const Result.success([
-        Program(id: 'program-cma', name: 'CMA', code: 'CMA'),
-        Program(id: 'program-fmaa', name: 'FMAA', code: 'FMAA'),
+        Program(id: 'program-cma', name: 'CMA'),
+        Program(id: 'program-fmaa', name: 'FMAA'),
       ]),
     );
 
@@ -100,9 +100,7 @@ void main() {
     when(() => repository.getPrograms()).thenAnswer((_) async {
       callCount++;
       if (callCount == 1) return const Result.failure(NetworkFailure());
-      return const Result.success([
-        Program(id: 'program-cma', name: 'CMA', code: 'CMA'),
-      ]);
+      return const Result.success([Program(id: 'program-cma', name: 'CMA')]);
     });
 
     await tester.pumpWidget(_wrap(repository));

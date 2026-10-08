@@ -135,9 +135,8 @@ void main() {
         final container = await _pumpApp(tester, repository);
         expect(find.text(_homeSubtitle), findsOneWidget);
 
-        when(
-          () => repository.refreshAccessToken(),
-        ).thenAnswer((_) async => null);
+        when(() => repository.refreshAccessToken())
+            .thenAnswer((_) async => null);
         await container.read(authNotifierProvider.notifier).silentRefresh();
         await tester.pumpAndSettle();
 

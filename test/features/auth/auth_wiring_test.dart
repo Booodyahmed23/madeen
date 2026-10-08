@@ -31,8 +31,11 @@ class _FakeBackend implements HttpClientAdapter {
 
   /// Token responses carry only the access token in the body; the refresh
   /// token travels in a `Set-Cookie` header (contract §A1).
-  (int, Object, String?) _tokens(String access, String refresh) =>
-      (200, {'accessToken': access}, 'refresh_token=$refresh; Path=/api/v1/auth; HttpOnly');
+  (int, Object, String?) _tokens(String access, String refresh) => (
+    200,
+    {'accessToken': access},
+    'refresh_token=$refresh; Path=/api/v1/auth; HttpOnly',
+  );
 
   @override
   Future<ResponseBody> fetch(
@@ -51,11 +54,7 @@ class _FakeBackend implements HttpClientAdapter {
         acceptedAccessToken = 'access-${refreshCount + 1}';
         return _tokens(acceptedAccessToken, 'refresh-2');
       }(),
-      '/auth/me' when auth == 'Bearer $acceptedAccessToken' => (
-        200,
-        _me,
-        null,
-      ),
+      '/auth/me' when auth == 'Bearer $acceptedAccessToken' => (200, _me, null),
       _ => (
         401,
         {'statusCode': 401, 'message': 'Invalid or expired token'},

@@ -265,12 +265,20 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
   /// only when the selected level actually has children to pick from.
   List<Widget> _scopeSection(AppLocalizations l10n) {
     final part = _selectedPart!;
-    final unitsAsync = ref.watch(unitsProvider(part.id));
+    final programId = part.programId;
+    final unitsAsync = ref.watch(
+      unitsProvider((programId: programId, partId: part.id)),
+    );
     final units = unitsAsync.value ?? const <Unit>[];
     final unit = _selectedUnit;
     final subUnits = unit == null
         ? const <SubUnit>[]
-        : ref.watch(subUnitsProvider(unit.id)).value ?? const <SubUnit>[];
+        : ref
+                  .watch(
+                    subUnitsProvider((programId: programId, unitId: unit.id)),
+                  )
+                  .value ??
+              const <SubUnit>[];
 
     return [
       if (unitsAsync.isLoading) ...[

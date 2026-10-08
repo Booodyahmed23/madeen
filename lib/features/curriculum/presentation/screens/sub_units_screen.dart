@@ -13,15 +13,23 @@ import '../../../../core/config/app_config.dart';
 import '../../../../shared/widgets/sample_data_banner.dart';
 
 class SubUnitsScreen extends ConsumerWidget {
-  const SubUnitsScreen({super.key, required this.unitId, this.unitName});
+  const SubUnitsScreen({
+    super.key,
+    required this.programId,
+    required this.unitId,
+    this.unitName,
+  });
 
+  final String programId;
   final String unitId;
   final String? unitName;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    final subUnits = ref.watch(subUnitsProvider(unitId));
+    final subUnits = ref.watch(
+      subUnitsProvider((programId: programId, unitId: unitId)),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -40,12 +48,13 @@ class SubUnitsScreen extends ConsumerWidget {
             child: AsyncListView<SubUnit>(
               value: subUnits,
               emptyMessage: l10n.curriculumNoSubUnits,
-              onRetry: () async => ref.invalidate(subUnitsProvider(unitId)),
+              onRetry: () async =>
+                  ref.invalidate(programTreeProvider(programId)),
               itemBuilder: (context, subUnit) => CurriculumListTile(
                 title: subUnit.name,
                 subtitle: subUnit.description,
                 onTap: () => context.push(
-                  AppRoutes.curriculumTopics(subUnit.id),
+                  AppRoutes.curriculumTopics(programId, subUnit.id),
                   extra: subUnit.name,
                 ),
               ),

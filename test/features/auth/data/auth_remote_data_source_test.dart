@@ -52,9 +52,7 @@ void main() {
     ResponseBody Function(RequestOptions options) respond,
   ) {
     adapter = _Adapter(respond);
-    return AuthRemoteDataSource(
-      ApiClient(Dio()..httpClientAdapter = adapter),
-    );
+    return AuthRemoteDataSource(ApiClient(Dio()..httpClientAdapter = adapter));
   }
 
   group('refreshTokenFromCookies', () {

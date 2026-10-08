@@ -4,11 +4,8 @@ import '../../../../core/error/app_failure.dart';
 import '../../../../core/error/failure_mapper.dart';
 import '../../../../core/error/result.dart';
 import '../../../../core/network/api_exception.dart';
-import '../../domain/entities/part.dart';
+import '../../domain/entities/curriculum_tree.dart';
 import '../../domain/entities/program.dart';
-import '../../domain/entities/sub_unit.dart';
-import '../../domain/entities/topic.dart';
-import '../../domain/entities/unit.dart';
 import '../../domain/repositories/curriculum_repository.dart';
 import '../datasources/curriculum_data_source.dart';
 
@@ -24,33 +21,8 @@ class CurriculumRepositoryImpl implements CurriculumRepository {
   );
 
   @override
-  Future<Result<List<Part>>> getParts(String programId) => _guard(
-    () async =>
-        (await _dataSource.getParts(programId))
-            .map((m) => m.toEntity())
-            .toList(),
-  );
-
-  @override
-  Future<Result<List<Unit>>> getUnits(String partId) => _guard(
-    () async =>
-        (await _dataSource.getUnits(partId)).map((m) => m.toEntity()).toList(),
-  );
-
-  @override
-  Future<Result<List<SubUnit>>> getSubUnits(String unitId) => _guard(
-    () async =>
-        (await _dataSource.getSubUnits(unitId))
-            .map((m) => m.toEntity())
-            .toList(),
-  );
-
-  @override
-  Future<Result<List<Topic>>> getTopics(String subUnitId) => _guard(
-    () async =>
-        (await _dataSource.getTopics(subUnitId))
-            .map((m) => m.toEntity())
-            .toList(),
+  Future<Result<CurriculumTree>> getProgramTree(String programId) => _guard(
+    () async => (await _dataSource.getProgramTree(programId)).toEntity(),
   );
 
   Future<Result<T>> _guard<T>(Future<T> Function() action) async {

@@ -1,7 +1,7 @@
 {
   "ENV_NAME": "staging",
   "API_BASE_URL": "https://kasbana.net/api/v1",
-  "CURRICULUM_API_AVAILABLE": false,
+  "CURRICULUM_API_AVAILABLE": true,
   "STUDY_SESSION_API_AVAILABLE": false,
   "EXAM_SIMULATION_API_AVAILABLE": false,
   "PERFORMANCE_API_AVAILABLE": false,
