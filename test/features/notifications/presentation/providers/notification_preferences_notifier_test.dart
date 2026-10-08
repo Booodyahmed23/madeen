@@ -68,8 +68,16 @@ void main() {
   test('setPreferences applies the update on success', () async {
     when(() => repository.getNotificationPreferences())
         .thenAnswer((_) async => const Result.success(_preferences));
-    when(() => repository.updateNotificationPreferences(any()))
-        .thenAnswer((_) async => const Result.success(null));
+    when(
+      () => repository.updateNotificationPreferences(
+        any(),
+        previous: any(named: 'previous'),
+      ),
+    ).thenAnswer(
+      (invocation) async => Result.success(
+        invocation.positionalArguments.first as NotificationPreferences,
+      ),
+    );
 
     final notifier = container.read(
       notificationPreferencesNotifierProvider.notifier,
@@ -87,8 +95,12 @@ void main() {
   test('setPreferences rolls back and surfaces saveError on failure', () async {
     when(() => repository.getNotificationPreferences())
         .thenAnswer((_) async => const Result.success(_preferences));
-    when(() => repository.updateNotificationPreferences(any()))
-        .thenAnswer((_) async => const Result.failure(NetworkFailure()));
+    when(
+      () => repository.updateNotificationPreferences(
+        any(),
+        previous: any(named: 'previous'),
+      ),
+    ).thenAnswer((_) async => const Result.failure(NetworkFailure()));
 
     final notifier = container.read(
       notificationPreferencesNotifierProvider.notifier,

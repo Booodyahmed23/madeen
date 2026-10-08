@@ -7,9 +7,12 @@ enum NotificationType {
   studyReminder,
   examReminder,
   performanceUpdate,
-  aiRecommendation,
   achievement,
-  system;
+  system,
+
+  /// A type this build doesn't know (the API may add more) — shown as a
+  /// plain notice, never an error (contract §A9).
+  unknown;
 
   static NotificationType fromWire(String value) {
     switch (value) {
@@ -19,14 +22,12 @@ enum NotificationType {
         return NotificationType.examReminder;
       case 'PERFORMANCE_UPDATE':
         return NotificationType.performanceUpdate;
-      case 'AI_RECOMMENDATION':
-        return NotificationType.aiRecommendation;
       case 'ACHIEVEMENT':
         return NotificationType.achievement;
       case 'SYSTEM':
         return NotificationType.system;
       default:
-        throw FormatException('Unknown notification type: $value');
+        return NotificationType.unknown;
     }
   }
 
@@ -34,9 +35,9 @@ enum NotificationType {
     NotificationType.studyReminder => 'STUDY_REMINDER',
     NotificationType.examReminder => 'EXAM_REMINDER',
     NotificationType.performanceUpdate => 'PERFORMANCE_UPDATE',
-    NotificationType.aiRecommendation => 'AI_RECOMMENDATION',
     NotificationType.achievement => 'ACHIEVEMENT',
     NotificationType.system => 'SYSTEM',
+    NotificationType.unknown => 'UNKNOWN',
   };
 }
 

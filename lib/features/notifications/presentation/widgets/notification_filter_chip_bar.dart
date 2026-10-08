@@ -28,7 +28,6 @@ class NotificationFilterChipBar extends StatelessWidget {
       NotificationListFilter.unread: l10n.notificationsFilterUnread,
       NotificationListFilter.study: l10n.notificationsFilterStudy,
       NotificationListFilter.performance: l10n.notificationsFilterPerformance,
-      NotificationListFilter.ai: l10n.notificationsFilterAi,
       NotificationListFilter.system: l10n.notificationsFilterSystem,
     };
 

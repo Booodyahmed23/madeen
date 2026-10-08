@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/app_failure.dart';
+import '../../../../core/error/failure_messages.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/madeen/madeen.dart';
@@ -71,21 +72,29 @@ class NotificationsPage extends ConsumerWidget {
                     .read(notificationsListNotifierProvider.notifier)
                     .retry(),
               ),
-              NotificationsListReady(items: final items) => _NotificationsList(
-                items: items.where(filter.matches).toList(),
-                filter: filter,
-                onTapItem: (item) {
-                  if (!item.isRead) {
-                    ref
-                        .read(notificationsListNotifierProvider.notifier)
-                        .markAsRead(item.id);
-                  }
-                  context.push(AppRoutes.notificationDetail(item.id));
-                },
-                onDismissItem: (item) => ref
-                    .read(notificationsListNotifierProvider.notifier)
-                    .delete(item.id),
-              ),
+              NotificationsListReady(
+                items: final items,
+                hasMore: final hasMore,
+              ) =>
+                _NotificationsList(
+                  items: items,
+                  filter: filter,
+                  hasMore: hasMore,
+                  onLoadMore: () => ref
+                      .read(notificationsListNotifierProvider.notifier)
+                      .loadMore(),
+                  onTapItem: (item) {
+                    if (!item.isRead) {
+                      ref
+                          .read(notificationsListNotifierProvider.notifier)
+                          .markAsRead(item.id);
+                    }
+                    context.push(AppRoutes.notificationDetail(item.id));
+                  },
+                  onDismissItem: (item) => ref
+                      .read(notificationsListNotifierProvider.notifier)
+                      .delete(item.id),
+                ),
             },
           ),
         ],
@@ -98,12 +107,16 @@ class _NotificationsList extends StatelessWidget {
   const _NotificationsList({
     required this.items,
     required this.filter,
+    required this.hasMore,
+    required this.onLoadMore,
     required this.onTapItem,
     required this.onDismissItem,
   });
 
   final List<NotificationItem> items;
   final NotificationListFilter filter;
+  final bool hasMore;
+  final VoidCallback onLoadMore;
   final ValueChanged<NotificationItem> onTapItem;
   final ValueChanged<NotificationItem> onDismissItem;
 
@@ -124,13 +137,22 @@ class _NotificationsList extends StatelessWidget {
     }
 
     return ListView.separated(
-      itemCount: items.length,
+      // One extra row while more pages exist: a spinner that asks for the
+      // next page as it scrolls into view.
+      itemCount: items.length + (hasMore ? 1 : 0),
       separatorBuilder: (_, _) => const Divider(
         height: 1,
         indent: MadeenSpace.pageMargin,
         endIndent: MadeenSpace.pageMargin,
       ),
       itemBuilder: (context, index) {
+        if (index == items.length) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => onLoadMore());
+          return const Padding(
+            padding: EdgeInsets.all(MadeenSpace.md),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
         final item = items[index];
         return NotificationListTile(
           notification: item,
@@ -152,7 +174,7 @@ class _ErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return MadeenPageMessage(
-      message: failure.message,
+      message: localizedFailureMessage(l10n, failure),
       isError: true,
       actionLabel: l10n.notificationsRetryButton,
       onAction: onRetry,

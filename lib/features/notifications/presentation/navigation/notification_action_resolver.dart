@@ -16,24 +16,21 @@ abstract final class NotificationActionResolver {
   static String? resolve(NotificationAction action) {
     final targetId = action.targetId;
     return switch (action.type) {
-      NotificationActionType.openStudySessionSetup =>
-        targetId == null ? null : AppRoutes.curriculumTopicDetail(targetId),
+      // With a topic, straight to its study setup; otherwise the curriculum
+      // to pick one.
+      NotificationActionType.openStudySetup =>
+        targetId == null
+            ? AppRoutes.curriculum
+            : AppRoutes.curriculumTopicDetail(targetId),
       NotificationActionType.openExamSetup => AppRoutes.examSetup,
-      NotificationActionType.openPerformanceOverview =>
-        AppRoutes.performanceOverview,
-      // No per-topic Performance route exists yet — the Topic Performance
-      // list is the closest existing destination, not a route invented for
-      // this resolver (see AppRoutes.performanceTopics).
+      NotificationActionType.openPerformance => AppRoutes.performanceOverview,
+      // No per-topic Performance route exists — the Topic Performance list
+      // is the closest existing destination (see AppRoutes.performanceTopics).
       NotificationActionType.openTopicPerformance =>
         AppRoutes.performanceTopics,
-      NotificationActionType.openAttemptDetails =>
+      NotificationActionType.openAttempt =>
         targetId == null ? null : AppRoutes.performanceAttemptDetail(targetId),
-      NotificationActionType.openAiAnalysisOverview =>
-        AppRoutes.aiAnalysisOverview,
-      NotificationActionType.openAiAnalysisTopic =>
-        targetId == null ? null : AppRoutes.aiAnalysisTopic(targetId),
-      NotificationActionType.openAiAnalysisAttempt =>
-        targetId == null ? null : AppRoutes.aiAnalysisAttempt(targetId),
+      NotificationActionType.openPlans => AppRoutes.plans,
       NotificationActionType.none => null,
       // A wire value this build doesn't recognize — same "fall back to
       // details" degradation as `none`, see NotificationActionType.fromWire.

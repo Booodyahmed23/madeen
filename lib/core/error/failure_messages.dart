@@ -11,7 +11,7 @@ import 'app_failure.dart';
 /// A known API error `code` wins over the failure type; an unknown code
 /// falls through to the generic message for its type (contract §G2).
 String localizedFailureMessage(AppLocalizations l10n, AppFailure failure) {
-  final byCode = _messageForCode(l10n, failure.code);
+  final byCode = _messageForCode(l10n, failure.code, failure.details);
   if (byCode != null) return byCode;
   return switch (failure) {
     NetworkFailure() => l10n.errorNetwork,
@@ -28,7 +28,11 @@ String localizedFailureMessage(AppLocalizations l10n, AppFailure failure) {
   };
 }
 
-String? _messageForCode(AppLocalizations l10n, String? code) {
+String? _messageForCode(
+  AppLocalizations l10n,
+  String? code,
+  Map<String, dynamic>? details,
+) {
   return switch (code) {
     'WRONG_CURRENT_PASSWORD' => l10n.errorWrongCurrentPassword,
     'SAME_PASSWORD' => l10n.errorSamePassword,
@@ -41,6 +45,10 @@ String? _messageForCode(AppLocalizations l10n, String? code) {
     'COUPON_ALREADY_USED' => l10n.errorCouponAlreadyUsed,
     'COUPON_NOT_FREE' => l10n.errorCouponNotFree,
     'PLAN_UNAVAILABLE' => l10n.errorPlanUnavailable,
+    'REMINDER_LIMIT_REACHED' => l10n.errorReminderLimitReached(
+      (details?['max'] as num?)?.toInt() ?? 20,
+    ),
+    'INVALID_CUSTOM_DAYS' => l10n.errorInvalidCustomDays,
     _ => null,
   };
 }

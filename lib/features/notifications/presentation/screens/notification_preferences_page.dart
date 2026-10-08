@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/app_failure.dart';
+import '../../../../core/error/failure_messages.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/madeen/madeen.dart';
 import '../../domain/entities/notification_preferences.dart';
@@ -128,18 +129,6 @@ class _PreferencesList extends ConsumerWidget {
           ],
         ),
         _Section(
-          title: l10n.notificationPreferencesSectionAi,
-          children: [
-            _PreferenceSwitch(
-              title: l10n.notificationPreferencesAiRecommendations,
-              subtitle: l10n.notificationPreferencesAiRecommendationsSubtitle,
-              value: preferences.aiRecommendations,
-              onChanged: (v) =>
-                  _update(ref, (p) => p.copyWith(aiRecommendations: v)),
-            ),
-          ],
-        ),
-        _Section(
           title: l10n.notificationPreferencesSectionAchievements,
           children: [
             _PreferenceSwitch(
@@ -239,7 +228,7 @@ class _ErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return MadeenPageMessage(
-      message: failure.message,
+      message: localizedFailureMessage(AppLocalizations.of(context)!, failure),
       isError: true,
       actionLabel: l10n.notificationPreferencesRetryButton,
       onAction: onRetry,

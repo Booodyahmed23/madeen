@@ -45,7 +45,8 @@ void main() {
     expect(find.text('Study reminders'), findsOneWidget);
     expect(find.text('Exam reminders'), findsOneWidget);
     expect(find.text('Performance updates'), findsOneWidget);
-    expect(find.text('AI recommendations'), findsOneWidget);
+    // The AI recommendations toggle is V2.
+    expect(find.text('AI recommendations'), findsNothing);
     expect(find.text('Achievements and milestones'), findsOneWidget);
     expect(find.text('Important system notifications'), findsOneWidget);
   });
@@ -57,8 +58,16 @@ void main() {
     when(
       () => repository.getNotificationPreferences(),
     ).thenAnswer((_) async => const Result.success(NotificationPreferences()));
-    when(() => repository.updateNotificationPreferences(any()))
-        .thenAnswer((_) async => const Result.success(null));
+    when(
+      () => repository.updateNotificationPreferences(
+        any(),
+        previous: any(named: 'previous'),
+      ),
+    ).thenAnswer(
+      (invocation) async => Result.success(
+        invocation.positionalArguments.first as NotificationPreferences,
+      ),
+    );
 
     await tester.pumpWidget(_wrap(repository));
     await tester.pumpAndSettle();
@@ -67,7 +76,10 @@ void main() {
     await tester.pumpAndSettle();
 
     final captured = verify(
-      () => repository.updateNotificationPreferences(captureAny()),
+      () => repository.updateNotificationPreferences(
+        captureAny(),
+        previous: any(named: 'previous'),
+      ),
     ).captured;
     expect(
       (captured.single as NotificationPreferences).studyReminders,
@@ -82,8 +94,12 @@ void main() {
     when(
       () => repository.getNotificationPreferences(),
     ).thenAnswer((_) async => const Result.success(NotificationPreferences()));
-    when(() => repository.updateNotificationPreferences(any()))
-        .thenAnswer((_) async => const Result.failure(NetworkFailure()));
+    when(
+      () => repository.updateNotificationPreferences(
+        any(),
+        previous: any(named: 'previous'),
+      ),
+    ).thenAnswer((_) async => const Result.failure(NetworkFailure()));
 
     await tester.pumpWidget(_wrap(repository));
     await tester.pumpAndSettle();
@@ -115,7 +131,10 @@ void main() {
     await tester.pumpWidget(_wrap(repository));
     await tester.pumpAndSettle();
 
-    expect(find.text('Network error. Please try again.'), findsOneWidget);
+    expect(
+      find.text("Can't reach the server. Check your connection and try again."),
+      findsOneWidget,
+    );
     expect(find.widgetWithText(OutlinedButton, 'Retry'), findsOneWidget);
   });
 }

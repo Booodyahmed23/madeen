@@ -817,8 +817,6 @@
   "@notificationsFilterStudy": {},
   "notificationsFilterPerformance": "Performance",
   "@notificationsFilterPerformance": {},
-  "notificationsFilterAi": "AI",
-  "@notificationsFilterAi": {},
   "notificationsFilterSystem": "System",
   "@notificationsFilterSystem": {},
   "notificationsPriorityHigh": "Important",
@@ -829,8 +827,6 @@
   "@notificationTypeExamReminder": {},
   "notificationTypePerformanceUpdate": "Performance update",
   "@notificationTypePerformanceUpdate": {},
-  "notificationTypeAiRecommendation": "AI recommendation",
-  "@notificationTypeAiRecommendation": {},
   "notificationTypeAchievement": "Achievement",
   "@notificationTypeAchievement": {},
   "notificationTypeSystem": "System",
@@ -861,8 +857,6 @@
   "@notificationPreferencesSectionExams": {},
   "notificationPreferencesSectionPerformance": "Performance",
   "@notificationPreferencesSectionPerformance": {},
-  "notificationPreferencesSectionAi": "AI",
-  "@notificationPreferencesSectionAi": {},
   "notificationPreferencesSectionAchievements": "Achievements",
   "@notificationPreferencesSectionAchievements": {},
   "notificationPreferencesSectionSystem": "System",
@@ -887,10 +881,6 @@
   "@notificationPreferencesPerformanceUpdates": {},
   "notificationPreferencesPerformanceUpdatesSubtitle": "Notify me when new performance insights are ready.",
   "@notificationPreferencesPerformanceUpdatesSubtitle": {},
-  "notificationPreferencesAiRecommendations": "AI recommendations",
-  "@notificationPreferencesAiRecommendations": {},
-  "notificationPreferencesAiRecommendationsSubtitle": "Notify me about new AI study recommendations.",
-  "@notificationPreferencesAiRecommendationsSubtitle": {},
   "notificationPreferencesAchievements": "Achievements and milestones",
   "@notificationPreferencesAchievements": {},
   "notificationPreferencesAchievementsSubtitle": "Celebrate milestones and study streaks.",
@@ -1225,5 +1215,15 @@
         "type": "int"
       }
     }
-  }
+  },
+  "errorReminderLimitReached": "You can have up to {max} reminders. Delete one to add another.",
+  "@errorReminderLimitReached": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "errorInvalidCustomDays": "Pick at least one day for a custom reminder.",
+  "@errorInvalidCustomDays": {}
 }

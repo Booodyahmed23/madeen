@@ -18,6 +18,7 @@ class StudyReminder {
     this.customDays = const {},
     this.notificationType = NotificationType.studyReminder,
     required this.createdAt,
+    this.updatedAt,
   });
 
   final String id;
@@ -43,6 +44,7 @@ class StudyReminder {
   final NotificationType notificationType;
 
   final DateTime createdAt;
+  final DateTime? updatedAt;
 
   /// The actual days this reminder fires on, regardless of which preset
   /// produced them — the single source of truth [NotificationScheduler]
@@ -67,6 +69,7 @@ class StudyReminder {
       customDays: customDays,
       notificationType: notificationType,
       createdAt: createdAt,
+      updatedAt: updatedAt,
     );
   }
 }

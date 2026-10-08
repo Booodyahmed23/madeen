@@ -4,12 +4,14 @@ import '../../../../core/error/app_failure.dart';
 import '../../../../core/error/failure_mapper.dart';
 import '../../../../core/error/result.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/paginated.dart';
 import '../../domain/entities/notification_item.dart';
 import '../../domain/entities/notification_preferences.dart';
 import '../../domain/entities/study_reminder.dart';
 import '../../domain/entities/study_reminder_draft.dart';
 import '../../domain/repositories/notifications_repository.dart';
 import '../datasources/notifications_data_source.dart';
+import '../models/notification_item_model.dart';
 import '../models/notification_preferences_model.dart';
 
 class NotificationsRepositoryImpl implements NotificationsRepository {
@@ -18,23 +20,43 @@ class NotificationsRepositoryImpl implements NotificationsRepository {
   final NotificationsDataSource _dataSource;
 
   @override
-  Future<Result<List<NotificationItem>>> getNotifications() => _guard(
-    () async => (await _dataSource.getNotifications())
-        .map((m) => m.toEntity())
-        .toList(),
-  );
+  Future<Result<Paginated<NotificationItem>>> getNotifications({
+    int page = 1,
+    int limit = 20,
+    NotificationListFilter filter = NotificationListFilter.all,
+  }) => _guard(() async {
+    final query = filter.query;
+    return Paginated.fromJson(
+      await _dataSource.getNotifications(
+        page: page,
+        limit: limit,
+        types: query.types,
+        unreadOnly: query.unreadOnly,
+      ),
+      notificationFromJson,
+    );
+  });
+
+  @override
+  Future<Result<NotificationItem>> getNotification(String notificationId) =>
+      _guard(
+        () async => notificationFromJson(
+          await _dataSource.getNotification(notificationId),
+        ),
+      );
 
   @override
   Future<Result<int>> getUnreadCount() =>
       _guard(() => _dataSource.getUnreadCount());
 
   @override
-  Future<Result<void>> markAsRead(String notificationId) =>
-      _guard(() => _dataSource.markAsRead(notificationId));
+  Future<Result<NotificationItem>> markAsRead(String notificationId) => _guard(
+    () async =>
+        notificationFromJson(await _dataSource.markAsRead(notificationId)),
+  );
 
   @override
-  Future<Result<void>> markAllAsRead() =>
-      _guard(() => _dataSource.markAllAsRead());
+  Future<Result<int>> markAllAsRead() => _guard(_dataSource.markAllAsRead);
 
   @override
   Future<Result<void>> deleteNotification(String notificationId) =>
@@ -43,17 +65,22 @@ class NotificationsRepositoryImpl implements NotificationsRepository {
   @override
   Future<Result<NotificationPreferences>> getNotificationPreferences() =>
       _guard(
-        () async => (await _dataSource.getNotificationPreferences()).toEntity(),
+        () async => notificationPreferencesFromJson(
+          await _dataSource.getNotificationPreferences(),
+        ),
       );
 
   @override
-  Future<Result<void>> updateNotificationPreferences(
-    NotificationPreferences preferences,
-  ) => _guard(
-    () => _dataSource.updateNotificationPreferences(
-      NotificationPreferencesModel.fromEntity(preferences),
-    ),
-  );
+  Future<Result<NotificationPreferences>> updateNotificationPreferences(
+    NotificationPreferences updated, {
+    required NotificationPreferences previous,
+  }) => _guard(() async {
+    final changes = notificationPreferencesChanges(previous, updated);
+    if (changes.isEmpty) return updated;
+    return notificationPreferencesFromJson(
+      await _dataSource.updateNotificationPreferences(changes),
+    );
+  });
 
   @override
   Future<Result<List<StudyReminder>>> getStudyReminders() => _guard(

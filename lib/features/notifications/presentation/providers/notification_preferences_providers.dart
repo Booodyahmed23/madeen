@@ -40,9 +40,12 @@ class NotificationPreferencesNotifier
     final previous = current.preferences;
 
     state = NotificationPreferencesReady(updated);
-    final result = await _repository.updateNotificationPreferences(updated);
+    final result = await _repository.updateNotificationPreferences(
+      updated,
+      previous: previous,
+    );
     result.when(
-      success: (_) {},
+      success: (saved) => state = NotificationPreferencesReady(saved),
       failure: (failure) {
         state = NotificationPreferencesReady(previous, saveError: failure);
       },

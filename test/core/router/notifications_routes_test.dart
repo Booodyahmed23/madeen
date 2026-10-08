@@ -19,6 +19,7 @@ import 'package:mobile/features/notifications/domain/repositories/notifications_
 import 'package:mocktail/mocktail.dart';
 
 import '../../features/subscription/access_overrides.dart';
+import '../../features/notifications/notification_test_helpers.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 
@@ -89,6 +90,7 @@ Widget _app({
 
 void main() {
   setUpAll(() {
+    registerFallbackValue(NotificationListFilter.all);
     registerFallbackValue(const NotificationPreferences());
     registerFallbackValue(
       const StudyReminderDraft(
@@ -137,18 +139,32 @@ void main() {
           .thenAnswer((_) async => const Result.success(_user));
 
       final notificationsRepository = MockNotificationsRepository();
-      when(() => notificationsRepository.getNotifications())
-          .thenAnswer((_) async => Result.success([_unread, _read]));
+      when(
+        () => notificationsRepository.getNotifications(
+          page: any(named: 'page'),
+          limit: any(named: 'limit'),
+          filter: any(named: 'filter'),
+        ),
+      ).thenAnswer((_) async => Result.success(pageOf([_unread, _read])));
       when(() => notificationsRepository.getUnreadCount())
           .thenAnswer((_) async => const Result.success(1));
-      when(() => notificationsRepository.markAsRead('notif-1'))
-          .thenAnswer((_) async => const Result.success(null));
+      when(
+        () => notificationsRepository.markAsRead('notif-1'),
+      ).thenAnswer((_) async => Result.success(_unread.copyWith(isRead: true)));
       when(() => notificationsRepository.getNotificationPreferences())
           .thenAnswer(
             (_) async => const Result.success(NotificationPreferences()),
           );
-      when(() => notificationsRepository.updateNotificationPreferences(any()))
-          .thenAnswer((_) async => const Result.success(null));
+      when(
+        () => notificationsRepository.updateNotificationPreferences(
+          any(),
+          previous: any(named: 'previous'),
+        ),
+      ).thenAnswer(
+        (invocation) async => Result.success(
+          invocation.positionalArguments.first as NotificationPreferences,
+        ),
+      );
       when(() => notificationsRepository.getStudyReminders())
           .thenAnswer((_) async => Result.success([_reminder]));
       when(() => notificationsRepository.createStudyReminder(any()))
@@ -203,8 +219,12 @@ void main() {
           .first;
       await tester.tap(studyRemindersSwitch);
       await tester.pumpAndSettle();
-      verify(() => notificationsRepository.updateNotificationPreferences(any()))
-          .called(1);
+      verify(
+        () => notificationsRepository.updateNotificationPreferences(
+          any(),
+          previous: any(named: 'previous'),
+        ),
+      ).called(1);
 
       // Back to Profile -> Study Reminders -> Add Reminder -> Editor ->
       // Save -> back to a list that now also shows the created reminder.

@@ -15,6 +15,7 @@ class StudyReminderModel {
     this.customDays = const {},
     this.notificationType = NotificationType.studyReminder,
     required this.createdAt,
+    this.updatedAt,
   });
 
   factory StudyReminderModel.fromJson(Map<String, dynamic> json) {
@@ -32,6 +33,9 @@ class StudyReminderModel {
           ? NotificationType.studyReminder
           : NotificationType.fromWire(json['notificationType'] as String),
       createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: json['updatedAt'] == null
+          ? null
+          : DateTime.parse(json['updatedAt'] as String),
     );
   }
 
@@ -44,6 +48,7 @@ class StudyReminderModel {
   final Set<Weekday> customDays;
   final NotificationType notificationType;
   final DateTime createdAt;
+  final DateTime? updatedAt;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -55,6 +60,7 @@ class StudyReminderModel {
     'customDays': customDays.map((d) => d.toWire()).toList(),
     'notificationType': notificationType.toWire(),
     'createdAt': createdAt.toIso8601String(),
+    'updatedAt': (updatedAt ?? createdAt).toIso8601String(),
   };
 
   StudyReminderModel copyWith({bool? enabled}) => StudyReminderModel(
@@ -67,6 +73,7 @@ class StudyReminderModel {
     customDays: customDays,
     notificationType: notificationType,
     createdAt: createdAt,
+    updatedAt: updatedAt,
   );
 
   StudyReminder toEntity() => StudyReminder(
@@ -79,6 +86,7 @@ class StudyReminderModel {
     customDays: customDays,
     notificationType: notificationType,
     createdAt: createdAt,
+    updatedAt: updatedAt,
   );
 }
 
@@ -87,11 +95,14 @@ class StudyReminderModel {
 /// [StudyReminderModel] with fields omitted; keeping it a distinct type
 /// makes that omission a compile error instead of a runtime one.
 Map<String, dynamic> studyReminderDraftToJson(StudyReminderDraft draft) => {
-  'title': draft.title,
+  'title': draft.title.trim(),
   'enabled': draft.enabled,
   'hour': draft.hour,
   'minute': draft.minute,
   'repeat': draft.repeat.toWire(),
-  'customDays': draft.customDays.map((d) => d.toWire()).toList(),
+  // Must be empty unless the reminder repeats on custom days.
+  'customDays': draft.repeat == ReminderRepeat.custom
+      ? [for (final day in draft.customDays) day.toWire()]
+      : <String>[],
   'notificationType': draft.notificationType.toWire(),
 };

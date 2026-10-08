@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/app_failure.dart';
+import '../../../../core/error/failure_messages.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/madeen/madeen.dart';
 import '../../domain/entities/notification_item.dart';
 import '../../domain/entities/notification_type.dart';
 import '../navigation/notification_action_resolver.dart';
-import '../providers/notifications_list_state.dart';
 import '../providers/notifications_providers.dart';
 import '../widgets/notification_format.dart';
 
@@ -43,22 +43,29 @@ class _NotificationDetailsPageState
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final listState = ref.watch(notificationsListNotifierProvider);
-    final item = ref.watch(notificationByIdProvider(widget.notificationId));
+    // The loaded copy wins (it reflects mark-as-read at once); otherwise
+    // the notification is fetched on its own.
+    final loaded = ref.watch(notificationByIdProvider(widget.notificationId));
+    final details = ref.watch(
+      notificationDetailsProvider(widget.notificationId),
+    );
+    final item = loaded ?? details.value;
 
     _maybeMarkAsRead(item);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.notificationDetailsTitle)),
-      body: switch (listState) {
-        NotificationsListLoading() => const MadeenPageLoading(),
-        NotificationsListError(failure: final failure) => _ErrorView(
+      body: switch ((item, details)) {
+        (final NotificationItem item, _) => _DetailsBody(item: item),
+        (_, AsyncError(error: NotFoundFailure())) => const _NotFoundView(),
+        (_, AsyncError(error: final AppFailure failure)) => _ErrorView(
           failure: failure,
-          onRetry: () =>
-              ref.read(notificationsListNotifierProvider.notifier).retry(),
+          onRetry: () => ref.invalidate(
+            notificationDetailsProvider(widget.notificationId),
+          ),
         ),
-        NotificationsListReady() =>
-          item == null ? const _NotFoundView() : _DetailsBody(item: item),
+        (_, AsyncError()) => const _NotFoundView(),
+        _ => const MadeenPageLoading(),
       },
     );
   }
@@ -252,7 +259,7 @@ class _ErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return MadeenPageMessage(
-      message: failure.message,
+      message: localizedFailureMessage(AppLocalizations.of(context)!, failure),
       isError: true,
       actionLabel: l10n.notificationsRetryButton,
       onAction: onRetry,

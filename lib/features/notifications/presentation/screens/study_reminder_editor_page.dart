@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/error/failure_messages.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/madeen/madeen.dart';
 import '../../domain/entities/reminder_repeat.dart';
@@ -102,7 +103,12 @@ class _StudyReminderEditorPageState
     if (failure == null) {
       Navigator.of(context).pop();
     } else {
-      setState(() => _saveErrorMessage = failure.message);
+      setState(
+        () => _saveErrorMessage = localizedFailureMessage(
+          AppLocalizations.of(context)!,
+          failure,
+        ),
+      );
     }
   }
 

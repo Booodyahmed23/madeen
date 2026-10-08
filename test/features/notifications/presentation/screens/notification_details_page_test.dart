@@ -12,6 +12,8 @@ import 'package:mobile/features/notifications/presentation/screens/notification_
 import 'package:mobile/l10n/generated/app_localizations.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../notification_test_helpers.dart';
+
 class MockNotificationsRepository extends Mock
     implements NotificationsRepository {}
 
@@ -23,7 +25,7 @@ final _withAction = NotificationItem(
   type: NotificationType.performanceUpdate,
   isRead: true,
   action: const NotificationAction(
-    type: NotificationActionType.openPerformanceOverview,
+    type: NotificationActionType.openPerformance,
   ),
 );
 
@@ -39,12 +41,19 @@ Widget _wrap(NotificationsRepository repository, String notificationId) {
 }
 
 void main() {
+  setUpAll(() => registerFallbackValue(NotificationListFilter.all));
+
   testWidgets('shows a CTA when the action resolves to a route', (
     tester,
   ) async {
     final repository = MockNotificationsRepository();
-    when(() => repository.getNotifications())
-        .thenAnswer((_) async => Result.success([_withAction]));
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async => Result.success(pageOf([_withAction])));
 
     await tester.pumpWidget(_wrap(repository, 'notif-1'));
     await tester.pumpAndSettle();
@@ -55,8 +64,13 @@ void main() {
 
   testWidgets('shows the not-found view for an unknown id', (tester) async {
     final repository = MockNotificationsRepository();
-    when(() => repository.getNotifications())
-        .thenAnswer((_) async => Result.success([_withAction]));
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async => Result.success(pageOf([_withAction])));
 
     await tester.pumpWidget(_wrap(repository, 'missing-id'));
     await tester.pumpAndSettle();
@@ -69,13 +83,58 @@ void main() {
     tester,
   ) async {
     final repository = MockNotificationsRepository();
-    when(() => repository.getNotifications())
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async => const Result.failure(NetworkFailure()));
+    // Not in the (failed) list, so it's fetched on its own — and fails too.
+    when(() => repository.getNotification('notif-1'))
         .thenAnswer((_) async => const Result.failure(NetworkFailure()));
 
     await tester.pumpWidget(_wrap(repository, 'notif-1'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Network error. Please try again.'), findsOneWidget);
+    expect(
+      find.text("Can't reach the server. Check your connection and try again."),
+      findsOneWidget,
+    );
     expect(find.widgetWithText(OutlinedButton, 'Retry'), findsOneWidget);
   });
+
+  testWidgets('a notification not in the list is fetched on its own', (
+    tester,
+  ) async {
+    final repository = MockNotificationsRepository();
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async => Result.success(pageOf(const [])));
+    when(() => repository.getNotification('notif-9'))
+        .thenAnswer((_) async => Result.success(_deepLinked));
+    when(() => repository.markAsRead('notif-9')).thenAnswer(
+      (_) async => Result.success(_deepLinked.copyWith(isRead: true)),
+    );
+    when(() => repository.getUnreadCount())
+        .thenAnswer((_) async => const Result.success(0));
+
+    await tester.pumpWidget(_wrap(repository, 'notif-9'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('From a push tap'), findsOneWidget);
+  });
 }
+
+final _deepLinked = NotificationItem(
+  id: 'notif-9',
+  title: 'From a push tap',
+  body: 'Opened before the list was loaded.',
+  createdAt: DateTime(2026, 10, 8),
+  type: NotificationType.system,
+  isRead: false,
+);

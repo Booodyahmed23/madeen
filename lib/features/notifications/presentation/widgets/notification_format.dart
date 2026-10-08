@@ -29,22 +29,21 @@ IconData notificationTypeIcon(NotificationType type) => switch (type) {
   NotificationType.studyReminder => Icons.menu_book_outlined,
   NotificationType.examReminder => Icons.timer_outlined,
   NotificationType.performanceUpdate => Icons.insights_outlined,
-  NotificationType.aiRecommendation => Icons.auto_awesome_outlined,
   NotificationType.achievement => Icons.emoji_events_outlined,
-  NotificationType.system => Icons.info_outline,
+  NotificationType.system || NotificationType.unknown => Icons.info_outline,
 };
 
 /// The localized label for [type] — used both as on-screen text (Details'
 /// "Type" row) and as part of each list tile's semantic label, never a raw
 /// enum name.
-String notificationTypeLabel(
-  AppLocalizations l10n,
-  NotificationType type,
-) => switch (type) {
-  NotificationType.studyReminder => l10n.notificationTypeStudyReminder,
-  NotificationType.examReminder => l10n.notificationTypeExamReminder,
-  NotificationType.performanceUpdate => l10n.notificationTypePerformanceUpdate,
-  NotificationType.aiRecommendation => l10n.notificationTypeAiRecommendation,
-  NotificationType.achievement => l10n.notificationTypeAchievement,
-  NotificationType.system => l10n.notificationTypeSystem,
-};
+String notificationTypeLabel(AppLocalizations l10n, NotificationType type) =>
+    switch (type) {
+      NotificationType.studyReminder => l10n.notificationTypeStudyReminder,
+      NotificationType.examReminder => l10n.notificationTypeExamReminder,
+      NotificationType.performanceUpdate =>
+        l10n.notificationTypePerformanceUpdate,
+      NotificationType.achievement => l10n.notificationTypeAchievement,
+      // An unknown type reads as a plain notice.
+      NotificationType.system ||
+      NotificationType.unknown => l10n.notificationTypeSystem,
+    };

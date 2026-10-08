@@ -10,6 +10,8 @@ import 'package:mobile/features/notifications/presentation/providers/notificatio
 import 'package:mobile/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../notification_test_helpers.dart';
+
 class MockNotificationsRepository extends Mock
     implements NotificationsRepository {}
 
@@ -37,6 +39,8 @@ final _read = NotificationItem(
 Future<void> _settle() => Future<void>.delayed(Duration.zero);
 
 void main() {
+  setUpAll(() => registerFallbackValue(NotificationListFilter.all));
+
   late MockNotificationsRepository repository;
   late ProviderContainer container;
 
@@ -53,8 +57,13 @@ void main() {
   });
 
   test('build triggers a fetch, landing on NotificationsListReady', () async {
-    when(() => repository.getNotifications())
-        .thenAnswer((_) async => Result.success([_unread, _read]));
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async => Result.success(pageOf([_unread, _read])));
 
     expect(
       container.read(notificationsListNotifierProvider),
@@ -68,8 +77,13 @@ void main() {
   });
 
   test('a failed fetch lands on NotificationsListError', () async {
-    when(() => repository.getNotifications())
-        .thenAnswer((_) async => const Result.failure(NetworkFailure()));
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async => const Result.failure(NetworkFailure()));
 
     container.read(notificationsListNotifierProvider);
     await _settle();
@@ -81,10 +95,16 @@ void main() {
   });
 
   test('markAsRead updates only the targeted item', () async {
-    when(() => repository.getNotifications())
-        .thenAnswer((_) async => Result.success([_unread, _read]));
-    when(() => repository.markAsRead('notif-1'))
-        .thenAnswer((_) async => const Result.success(null));
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async => Result.success(pageOf([_unread, _read])));
+    when(
+      () => repository.markAsRead('notif-1'),
+    ).thenAnswer((_) async => Result.success(_unread.copyWith(isRead: true)));
 
     final notifier = container.read(notificationsListNotifierProvider.notifier);
     await _settle();
@@ -97,11 +117,25 @@ void main() {
     expect(state.items.firstWhere((n) => n.id == 'notif-2').isRead, isTrue);
   });
 
-  test('markAllAsRead marks every item read', () async {
-    when(() => repository.getNotifications())
-        .thenAnswer((_) async => Result.success([_unread, _read]));
+  test('markAllAsRead reloads the list from the server', () async {
+    var reads = 0;
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer(
+      (_) async => Result.success(
+        pageOf(
+          reads++ == 0
+              ? [_unread, _read]
+              : [_unread.copyWith(isRead: true), _read],
+        ),
+      ),
+    );
     when(() => repository.markAllAsRead())
-        .thenAnswer((_) async => const Result.success(null));
+        .thenAnswer((_) async => const Result.success(1));
 
     final notifier = container.read(notificationsListNotifierProvider.notifier);
     await _settle();
@@ -111,11 +145,44 @@ void main() {
       notificationsListNotifierProvider,
     ) as NotificationsListReady;
     expect(state.items.every((n) => n.isRead), isTrue);
+    expect(reads, 2);
+  });
+
+  test('loadMore appends the next page', () async {
+    when(
+      () => repository.getNotifications(
+        page: 1,
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async => Result.success(pageOf([_unread], hasMore: true)));
+    when(
+      () => repository.getNotifications(
+        page: 2,
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async => Result.success(pageOf([_read], page: 2)));
+
+    final notifier = container.read(notificationsListNotifierProvider.notifier);
+    await _settle();
+    await notifier.loadMore();
+
+    final state = container.read(
+      notificationsListNotifierProvider,
+    ) as NotificationsListReady;
+    expect(state.items.map((n) => n.id), ['notif-1', 'notif-2']);
+    expect(state.hasMore, isFalse);
   });
 
   test('delete removes the item from the list', () async {
-    when(() => repository.getNotifications())
-        .thenAnswer((_) async => Result.success([_unread, _read]));
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async => Result.success(pageOf([_unread, _read])));
     when(() => repository.deleteNotification('notif-1'))
         .thenAnswer((_) async => const Result.success(null));
 
@@ -161,8 +228,13 @@ void main() {
   test(
     'notificationByIdProvider looks up a loaded item by id, else null',
     () async {
-      when(() => repository.getNotifications())
-          .thenAnswer((_) async => Result.success([_unread, _read]));
+      when(
+        () => repository.getNotifications(
+          page: any(named: 'page'),
+          limit: any(named: 'limit'),
+          filter: any(named: 'filter'),
+        ),
+      ).thenAnswer((_) async => Result.success(pageOf([_unread, _read])));
 
       container.read(notificationsListNotifierProvider);
       await _settle();

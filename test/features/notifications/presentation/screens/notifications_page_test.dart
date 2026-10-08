@@ -12,6 +12,9 @@ import 'package:mobile/features/notifications/domain/repositories/notifications_
 import 'package:mobile/features/notifications/presentation/screens/notifications_page.dart';
 import 'package:mobile/l10n/generated/app_localizations.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:mobile/core/network/paginated.dart';
+
+import '../../notification_test_helpers.dart';
 
 class MockNotificationsRepository extends Mock
     implements NotificationsRepository {}
@@ -49,11 +52,18 @@ Widget _wrap(
 }
 
 void main() {
+  setUpAll(() => registerFallbackValue(NotificationListFilter.all));
+
   testWidgets('shows a loading indicator while fetching', (tester) async {
     final repository = MockNotificationsRepository();
-    final completer = Completer<Result<List<NotificationItem>>>();
-    when(() => repository.getNotifications())
-        .thenAnswer((_) => completer.future);
+    final completer = Completer<Result<Paginated<NotificationItem>>>();
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) => completer.future);
     when(() => repository.getUnreadCount())
         .thenAnswer((_) async => const Result.success(0));
 
@@ -61,7 +71,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(CircularProgressIndicator), findsWidgets);
-    completer.complete(const Result.success([]));
+    completer.complete(Result.success(pageOf(const [])));
     await tester.pumpAndSettle();
   });
 
@@ -69,8 +79,13 @@ void main() {
     tester,
   ) async {
     final repository = MockNotificationsRepository();
-    when(() => repository.getNotifications())
-        .thenAnswer((_) async => const Result.success([]));
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async => Result.success(pageOf(const [])));
     when(() => repository.getUnreadCount())
         .thenAnswer((_) async => const Result.success(0));
 
@@ -83,10 +98,16 @@ void main() {
   testWidgets('shows a localized error and retries on tap', (tester) async {
     final repository = MockNotificationsRepository();
     var callCount = 0;
-    when(() => repository.getNotifications()).thenAnswer((_) async {
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async {
       callCount++;
       if (callCount == 1) return const Result.failure(NetworkFailure());
-      return Result.success([_studyItem]);
+      return Result.success(pageOf([_studyItem]));
     });
     when(() => repository.getUnreadCount())
         .thenAnswer((_) async => const Result.success(1));
@@ -94,7 +115,10 @@ void main() {
     await tester.pumpWidget(_wrap(repository));
     await tester.pumpAndSettle();
 
-    expect(find.text('Network error. Please try again.'), findsOneWidget);
+    expect(
+      find.text("Can't reach the server. Check your connection and try again."),
+      findsOneWidget,
+    );
     await tester.tap(find.widgetWithText(OutlinedButton, 'Retry'));
     await tester.pumpAndSettle();
 
@@ -102,12 +126,26 @@ void main() {
     expect(callCount, 2);
   });
 
-  testWidgets('filtering to System hides the Study notification', (
+  testWidgets('the System chip asks the server for system notifications', (
     tester,
   ) async {
     final repository = MockNotificationsRepository();
-    when(() => repository.getNotifications())
-        .thenAnswer((_) async => Result.success([_studyItem, _systemItem]));
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: NotificationListFilter.all,
+      ),
+    ).thenAnswer(
+      (_) async => Result.success(pageOf([_studyItem, _systemItem])),
+    );
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: NotificationListFilter.system,
+      ),
+    ).thenAnswer((_) async => Result.success(pageOf([_systemItem])));
     when(() => repository.getUnreadCount())
         .thenAnswer((_) async => const Result.success(1));
 
@@ -128,12 +166,17 @@ void main() {
     tester,
   ) async {
     final repository = MockNotificationsRepository();
-    when(() => repository.getNotifications())
-        .thenAnswer((_) async => Result.success([_studyItem]));
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async => Result.success(pageOf([_studyItem])));
     when(() => repository.getUnreadCount())
         .thenAnswer((_) async => const Result.success(1));
     when(() => repository.markAllAsRead())
-        .thenAnswer((_) async => const Result.success(null));
+        .thenAnswer((_) async => const Result.success(1));
 
     await tester.pumpWidget(_wrap(repository));
     await tester.pumpAndSettle();
@@ -149,8 +192,13 @@ void main() {
     tester,
   ) async {
     final repository = MockNotificationsRepository();
-    when(() => repository.getNotifications())
-        .thenAnswer((_) async => Result.success([_studyItem]));
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async => Result.success(pageOf([_studyItem])));
     when(() => repository.getUnreadCount())
         .thenAnswer((_) async => const Result.success(1));
     when(() => repository.deleteNotification('notif-1'))
@@ -170,8 +218,13 @@ void main() {
 
   testWidgets('renders in Arabic (RTL) without crashing', (tester) async {
     final repository = MockNotificationsRepository();
-    when(() => repository.getNotifications())
-        .thenAnswer((_) async => Result.success([_studyItem]));
+    when(
+      () => repository.getNotifications(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+        filter: any(named: 'filter'),
+      ),
+    ).thenAnswer((_) async => Result.success(pageOf([_studyItem])));
     when(() => repository.getUnreadCount())
         .thenAnswer((_) async => const Result.success(1));
 

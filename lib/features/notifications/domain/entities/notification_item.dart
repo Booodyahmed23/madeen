@@ -15,6 +15,7 @@ class NotificationItem {
     required this.isRead,
     this.priority = NotificationPriority.normal,
     this.action = const NotificationAction(),
+    this.readAt,
   });
 
   final String id;
@@ -26,7 +27,10 @@ class NotificationItem {
   final NotificationPriority priority;
   final NotificationAction action;
 
-  NotificationItem copyWith({bool? isRead}) {
+  /// When it was first read; `null` while unread.
+  final DateTime? readAt;
+
+  NotificationItem copyWith({bool? isRead, DateTime? readAt}) {
     return NotificationItem(
       id: id,
       title: title,
@@ -36,6 +40,7 @@ class NotificationItem {
       isRead: isRead ?? this.isRead,
       priority: priority,
       action: action,
+      readAt: readAt ?? this.readAt,
     );
   }
 }
@@ -53,7 +58,6 @@ enum NotificationListFilter {
   unread,
   study,
   performance,
-  ai,
   system;
 
   bool matches(NotificationItem item) => switch (this) {
@@ -65,7 +69,25 @@ enum NotificationListFilter {
     NotificationListFilter.performance =>
       item.type == NotificationType.performanceUpdate ||
           item.type == NotificationType.achievement,
-    NotificationListFilter.ai => item.type == NotificationType.aiRecommendation,
     NotificationListFilter.system => item.type == NotificationType.system,
+  };
+
+  /// The API query for this chip (contract §A9) — the list is filtered on
+  /// the server, not in memory.
+  ({List<String> types, bool unreadOnly}) get query => switch (this) {
+    NotificationListFilter.all => (types: const [], unreadOnly: false),
+    NotificationListFilter.unread => (types: const [], unreadOnly: true),
+    NotificationListFilter.study => (
+      types: const ['STUDY_REMINDER', 'EXAM_REMINDER'],
+      unreadOnly: false,
+    ),
+    NotificationListFilter.performance => (
+      types: const ['PERFORMANCE_UPDATE', 'ACHIEVEMENT'],
+      unreadOnly: false,
+    ),
+    NotificationListFilter.system => (
+      types: const ['SYSTEM'],
+      unreadOnly: false,
+    ),
   };
 }

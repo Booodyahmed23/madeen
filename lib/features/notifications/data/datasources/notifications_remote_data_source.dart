@@ -1,59 +1,59 @@
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/paginated.dart';
 import '../../domain/entities/study_reminder_draft.dart';
-import '../models/notification_item_model.dart';
-import '../models/notification_preferences_model.dart';
 import '../models/study_reminder_model.dart';
 import 'notifications_data_source.dart';
 
-/// Talks to the Notifications endpoints proposed in NOTIFICATIONS_API_
-/// REQUIREMENTS.md (mobile/ root).
-///
-/// ⚠️ NOT YET INTEGRATION-TESTED AGAINST A REAL BACKEND — as of Phase 8,
-/// backend/ has no Notifications module (verified by inspection: only
-/// `identity` and `notification` — the transactional email/SMS dispatch
-/// module, a different concern, see docs/ARCHITECTURE.md §3's module table
-/// — exist under backend/src/modules/). This class exists so the mobile
-/// app's abstraction is ready the day the real endpoints ship; until then
-/// it is wired up but not selected by default — see
-/// AppConfig.isNotificationsApiAvailable and notifications_data_source.dart.
+/// `/notifications/*` and `/study-reminders/*` (contract §A9). Sends only
+/// the documented fields — the API rejects unknown ones with `400`.
 class NotificationsRemoteDataSource implements NotificationsDataSource {
   NotificationsRemoteDataSource(this._apiClient);
 
   final ApiClient _apiClient;
 
+  static Json _json(dynamic data) => data as Json;
+
   @override
-  Future<List<NotificationItemModel>> getNotifications() {
+  Future<Json> getNotifications({
+    required int page,
+    required int limit,
+    required List<String> types,
+    required bool unreadOnly,
+  }) {
     return _apiClient.get(
       '/notifications',
-      parse: (data) => (data as List)
-          .map(
-            (json) =>
-                NotificationItemModel.fromJson(json as Map<String, dynamic>),
-          )
-          .toList(),
+      queryParameters: {
+        ...pageQuery(page: page, limit: limit),
+        if (unreadOnly) 'unreadOnly': true,
+        // A list repeats the key: `type=A&type=B`.
+        if (types.isNotEmpty) 'type': types,
+      },
+      parse: _json,
     );
   }
+
+  @override
+  Future<Json> getNotification(String notificationId) =>
+      _apiClient.get('/notifications/$notificationId', parse: _json);
 
   @override
   Future<int> getUnreadCount() {
     return _apiClient.get(
       '/notifications/unread-count',
-      parse: (data) => ((data as Map<String, dynamic>)['count'] as num).toInt(),
+      parse: (data) => ((data as Json)['count'] as num).toInt(),
     );
   }
 
   @override
-  Future<void> markAsRead(String notificationId) {
-    return _apiClient.patch(
-      '/notifications/$notificationId/read',
-      data: const {'isRead': true},
-      parse: (_) {},
-    );
-  }
+  Future<Json> markAsRead(String notificationId) =>
+      _apiClient.patch('/notifications/$notificationId/read', parse: _json);
 
   @override
-  Future<void> markAllAsRead() {
-    return _apiClient.post('/notifications/read-all', parse: (_) {});
+  Future<int> markAllAsRead() {
+    return _apiClient.post(
+      '/notifications/read-all',
+      parse: (data) => ((data as Json)['updated'] as num).toInt(),
+    );
   }
 
   @override
@@ -62,22 +62,15 @@ class NotificationsRemoteDataSource implements NotificationsDataSource {
   }
 
   @override
-  Future<NotificationPreferencesModel> getNotificationPreferences() {
-    return _apiClient.get(
-      '/notifications/preferences',
-      parse: (data) =>
-          NotificationPreferencesModel.fromJson(data as Map<String, dynamic>),
-    );
-  }
+  Future<Json> getNotificationPreferences() =>
+      _apiClient.get('/notifications/preferences', parse: _json);
 
   @override
-  Future<void> updateNotificationPreferences(
-    NotificationPreferencesModel preferences,
-  ) {
+  Future<Json> updateNotificationPreferences(Map<String, bool> changes) {
     return _apiClient.patch(
       '/notifications/preferences',
-      data: preferences.toJson(),
-      parse: (_) {},
+      data: changes,
+      parse: _json,
     );
   }
 
@@ -85,11 +78,10 @@ class NotificationsRemoteDataSource implements NotificationsDataSource {
   Future<List<StudyReminderModel>> getStudyReminders() {
     return _apiClient.get(
       '/study-reminders',
-      parse: (data) => (data as List)
-          .map(
-            (json) => StudyReminderModel.fromJson(json as Map<String, dynamic>),
-          )
-          .toList(),
+      parse: (data) => [
+        for (final json in data as List)
+          StudyReminderModel.fromJson(json as Json),
+      ],
     );
   }
 
@@ -98,8 +90,7 @@ class NotificationsRemoteDataSource implements NotificationsDataSource {
     return _apiClient.post(
       '/study-reminders',
       data: studyReminderDraftToJson(draft),
-      parse: (data) =>
-          StudyReminderModel.fromJson(data as Map<String, dynamic>),
+      parse: (data) => StudyReminderModel.fromJson(data as Json),
     );
   }
 
@@ -111,8 +102,7 @@ class NotificationsRemoteDataSource implements NotificationsDataSource {
     return _apiClient.patch(
       '/study-reminders/$reminderId',
       data: studyReminderDraftToJson(draft),
-      parse: (data) =>
-          StudyReminderModel.fromJson(data as Map<String, dynamic>),
+      parse: (data) => StudyReminderModel.fromJson(data as Json),
     );
   }
 
@@ -129,8 +119,7 @@ class NotificationsRemoteDataSource implements NotificationsDataSource {
     return _apiClient.patch(
       '/study-reminders/$reminderId',
       data: {'enabled': enabled},
-      parse: (data) =>
-          StudyReminderModel.fromJson(data as Map<String, dynamic>),
+      parse: (data) => StudyReminderModel.fromJson(data as Json),
     );
   }
 }

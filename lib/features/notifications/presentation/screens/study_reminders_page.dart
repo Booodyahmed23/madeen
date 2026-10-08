@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/app_failure.dart';
+import '../../../../core/error/failure_messages.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/madeen/madeen.dart';
@@ -111,7 +112,7 @@ class _ErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return MadeenPageMessage(
-      message: failure.message,
+      message: localizedFailureMessage(AppLocalizations.of(context)!, failure),
       isError: true,
       actionLabel: l10n.studyRemindersRetryButton,
       onAction: onRetry,

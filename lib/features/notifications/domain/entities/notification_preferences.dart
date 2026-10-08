@@ -11,7 +11,6 @@ class NotificationPreferences {
     this.examReminders = true,
     this.simulationReminders = true,
     this.performanceUpdates = true,
-    this.aiRecommendations = true,
     this.achievements = true,
     this.systemNotifications = true,
   });
@@ -21,7 +20,6 @@ class NotificationPreferences {
   final bool examReminders;
   final bool simulationReminders;
   final bool performanceUpdates;
-  final bool aiRecommendations;
   final bool achievements;
   final bool systemNotifications;
 
@@ -31,7 +29,6 @@ class NotificationPreferences {
     bool? examReminders,
     bool? simulationReminders,
     bool? performanceUpdates,
-    bool? aiRecommendations,
     bool? achievements,
     bool? systemNotifications,
   }) {
@@ -41,7 +38,6 @@ class NotificationPreferences {
       examReminders: examReminders ?? this.examReminders,
       simulationReminders: simulationReminders ?? this.simulationReminders,
       performanceUpdates: performanceUpdates ?? this.performanceUpdates,
-      aiRecommendations: aiRecommendations ?? this.aiRecommendations,
       achievements: achievements ?? this.achievements,
       systemNotifications: systemNotifications ?? this.systemNotifications,
     );

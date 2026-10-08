@@ -1,10 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/error/app_failure.dart';
+import 'package:mobile/core/error/result.dart';
 import 'package:mobile/core/network/api_exception.dart';
 import 'package:mobile/features/notifications/data/datasources/notifications_data_source.dart';
-import 'package:mobile/features/notifications/data/models/notification_item_model.dart';
 import 'package:mobile/features/notifications/data/repositories/notifications_repository_impl.dart';
-import 'package:mobile/features/notifications/domain/entities/notification_type.dart';
+import 'package:mobile/features/notifications/domain/entities/notification_item.dart';
+import 'package:mobile/features/notifications/domain/entities/notification_preferences.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockNotificationsDataSource extends Mock
@@ -19,66 +20,65 @@ void main() {
     repository = NotificationsRepositoryImpl(dataSource);
   });
 
-  test('getNotifications maps every model to its entity on success', () async {
-    when(() => dataSource.getNotifications()).thenAnswer(
-      (_) async => [
-        NotificationItemModel(
-          id: 'notif-1',
-          title: 'Title',
-          body: 'Body',
-          createdAt: DateTime(2026, 9, 25),
-          type: NotificationType.system,
-          isRead: false,
-        ),
-      ],
-    );
-
-    final result = await repository.getNotifications();
-
-    expect(
-      result.when(success: (items) => items.length, failure: (_) => -1),
-      1,
-    );
-  });
-
-  test('getUnreadCount surfaces an ApiException as a mapped failure', () async {
+  test('a filter chip becomes the API query', () async {
     when(
-      () => dataSource.getUnreadCount(),
-    ).thenThrow(const ApiException(statusCode: 500, message: 'Server error'));
-
-    final result = await repository.getUnreadCount();
-
-    expect(
-      result.when(success: (_) => null, failure: (f) => f.runtimeType),
-      ServerFailure,
+      () => dataSource.getNotifications(
+        page: 2,
+        limit: 20,
+        types: const ['PERFORMANCE_UPDATE', 'ACHIEVEMENT'],
+        unreadOnly: false,
+      ),
+    ).thenAnswer(
+      (_) async => {
+        'data': <Object>[],
+        'meta': {'page': 2, 'limit': 20, 'total': 20, 'totalPages': 2},
+      },
     );
-  });
 
-  test('markAsRead maps an unexpected exception to UnknownFailure', () async {
-    when(() => dataSource.markAsRead(any())).thenThrow(StateError('boom'));
-
-    final result = await repository.markAsRead('notif-1');
-
-    expect(
-      result.when(success: (_) => null, failure: (f) => f.runtimeType),
-      UnknownFailure,
+    final result = await repository.getNotifications(
+      page: 2,
+      filter: NotificationListFilter.performance,
     );
+
+    expect((result as Success).value.hasMore, isFalse);
   });
 
-  test('markAllAsRead succeeds when the data source succeeds', () async {
-    when(() => dataSource.markAllAsRead()).thenAnswer((_) async {});
+  test('unchanged preferences make no call', () async {
+    const prefs = NotificationPreferences();
 
-    final result = await repository.markAllAsRead();
+    final result = await repository.updateNotificationPreferences(
+      prefs,
+      previous: prefs,
+    );
 
-    expect(result.when(success: (_) => true, failure: (_) => false), isTrue);
-    verify(() => dataSource.markAllAsRead()).called(1);
+    expect(result, isA<Success<NotificationPreferences>>());
+    verifyNever(() => dataSource.updateNotificationPreferences(any()));
   });
 
-  test('deleteNotification delegates the id to the data source', () async {
-    when(() => dataSource.deleteNotification(any())).thenAnswer((_) async {});
+  test('a changed preference is sent alone', () async {
+    when(
+      () => dataSource.updateNotificationPreferences({'achievements': false}),
+    ).thenAnswer((_) async => {'achievements': false});
 
-    await repository.deleteNotification('notif-1');
+    final result = await repository.updateNotificationPreferences(
+      const NotificationPreferences(achievements: false),
+      previous: const NotificationPreferences(),
+    );
 
-    verify(() => dataSource.deleteNotification('notif-1')).called(1);
+    expect((result as Success).value.achievements, isFalse);
+  });
+
+  test('a 404 for one notification becomes NotFoundFailure', () async {
+    when(() => dataSource.getNotification('x')).thenThrow(
+      const ApiException(
+        statusCode: 404,
+        message: 'Not found',
+        code: 'NOT_FOUND',
+      ),
+    );
+
+    final result = await repository.getNotification('x');
+
+    expect((result as Failure).failure, isA<NotFoundFailure>());
   });
 }

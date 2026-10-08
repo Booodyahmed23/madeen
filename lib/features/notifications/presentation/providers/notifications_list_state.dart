@@ -15,9 +15,31 @@ class NotificationsListLoading extends NotificationsListState {
 }
 
 class NotificationsListReady extends NotificationsListState {
-  const NotificationsListReady(this.items);
+  const NotificationsListReady(
+    this.items, {
+    this.page = 1,
+    this.hasMore = false,
+    this.isLoadingMore = false,
+  });
 
   final List<NotificationItem> items;
+
+  /// The last page loaded.
+  final int page;
+  final bool hasMore;
+  final bool isLoadingMore;
+
+  NotificationsListReady copyWith({
+    List<NotificationItem>? items,
+    int? page,
+    bool? hasMore,
+    bool? isLoadingMore,
+  }) => NotificationsListReady(
+    items ?? this.items,
+    page: page ?? this.page,
+    hasMore: hasMore ?? this.hasMore,
+    isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+  );
 }
 
 class NotificationsListError extends NotificationsListState {
