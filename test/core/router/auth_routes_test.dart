@@ -12,6 +12,7 @@ import 'package:mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_notifier.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile/app/reminder_sync.dart';
 
 import '../../features/subscription/access_overrides.dart';
 
@@ -42,6 +43,8 @@ Future<ProviderContainer> _pumpApp(
   final container = ProviderContainer(
     overrides: [
       ...accessOverrides(),
+      // Reminder sync has its own tests; here it would outlive the test.
+      reminderSyncProvider.overrideWithValue(null),
       authRepositoryProvider.overrideWithValue(repository),
     ],
   );
@@ -194,6 +197,8 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           ...accessOverrides(),
+          // Reminder sync has its own tests; here it would outlive the test.
+          reminderSyncProvider.overrideWithValue(null),
           authRepositoryProvider.overrideWithValue(repository),
         ],
       );

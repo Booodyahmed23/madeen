@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/error/app_failure.dart';
 import 'package:mobile/core/error/result.dart';
 import 'package:mobile/features/notifications/data/repositories/notifications_repository_impl.dart';
+import 'package:mobile/features/notifications/data/services/local_notification_scheduler.dart';
 import 'package:mobile/features/notifications/data/services/mock_notification_scheduler.dart';
 import 'package:mobile/features/notifications/domain/entities/reminder_repeat.dart';
 import 'package:mobile/features/notifications/domain/entities/study_reminder.dart';
@@ -42,13 +43,16 @@ void main() {
   });
 
   late MockNotificationsRepository repository;
+  late MockNotificationScheduler mockScheduler;
   late ProviderContainer container;
 
   setUp(() {
     repository = MockNotificationsRepository();
+    mockScheduler = MockNotificationScheduler();
     container = ProviderContainer(
       overrides: [
         notificationsRepositoryProvider.overrideWithValue(repository),
+        notificationSchedulerProvider.overrideWithValue(mockScheduler),
       ],
     );
     addTearDown(container.dispose);
@@ -65,7 +69,7 @@ void main() {
         container.read(studyRemindersNotifierProvider) as StudyRemindersReady;
     expect(state.reminders, hasLength(1));
 
-    final scheduler = container.read(notificationSchedulerProvider);
+    final scheduler = mockScheduler;
     expect(scheduler.scheduledReminderIds, contains('reminder-1'));
   });
 
@@ -84,7 +88,7 @@ void main() {
         container.read(studyRemindersNotifierProvider) as StudyRemindersReady;
     expect(state.reminders.first.id, 'reminder-new');
 
-    final scheduler = container.read(notificationSchedulerProvider);
+    final scheduler = mockScheduler;
     expect(scheduler.scheduledReminderIds, contains('reminder-new'));
   });
 
@@ -118,7 +122,7 @@ void main() {
         container.read(studyRemindersNotifierProvider) as StudyRemindersReady;
     expect(state.reminders, isEmpty);
 
-    final scheduler = container.read(notificationSchedulerProvider);
+    final scheduler = mockScheduler;
     expect(scheduler.scheduledReminderIds, isNot(contains('reminder-1')));
   });
 
@@ -136,7 +140,7 @@ void main() {
         container.read(studyRemindersNotifierProvider) as StudyRemindersReady;
     expect(state.reminders.single.enabled, isFalse);
 
-    final scheduler = container.read(notificationSchedulerProvider);
+    final scheduler = mockScheduler;
     expect(scheduler.scheduledReminderIds, isNot(contains('reminder-1')));
   });
 

@@ -12,6 +12,7 @@ import '../features/auth/presentation/screens/session_unavailable_screen.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../shared/widgets/madeen/madeen.dart';
 import 'practice_attempt_recorder.dart';
+import 'reminder_sync.dart';
 
 class App extends ConsumerWidget {
   const App({super.key});
@@ -32,6 +33,7 @@ class App extends ConsumerWidget {
     // Keeps completed practice attempts flowing into Performance for the
     // app's whole lifetime — see practice_attempt_recorder.dart.
     ref.watch(practiceAttemptRecorderProvider);
+    ref.watch(reminderSyncProvider);
 
     if (authState is AuthInitializing || authState is AuthSessionUnavailable) {
       return MaterialApp(

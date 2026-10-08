@@ -26,6 +26,7 @@ import '../features/subscription/access_overrides.dart';
 import '../features/study_session/study_session_fixtures.dart';
 
 import 'package:mobile/core/network/paginated.dart';
+import 'package:mobile/app/reminder_sync.dart';
 
 import '../features/exam_simulation/exam_fixtures.dart';
 
@@ -126,6 +127,8 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         ...accessOverrides(),
+        // Reminder sync has its own tests; here it would outlive the test.
+        reminderSyncProvider.overrideWithValue(null),
         authRepositoryProvider.overrideWithValue(auth),
         studySessionRepositoryProvider.overrideWithValue(study),
         examRepositoryProvider.overrideWithValue(exam),

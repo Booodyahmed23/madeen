@@ -1,19 +1,26 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import '../../domain/entities/notification_preferences.dart';
+import '../../domain/entities/reminder_repeat.dart';
 import '../../domain/entities/study_reminder.dart';
+import '../../domain/services/reminder_rules.dart';
 import '../../domain/services/notification_scheduler.dart';
 
-/// **Does not schedule a real OS-level notification.** This records which
-/// reminder ids are "scheduled" purely in memory so the Study Reminders UI
-/// has something truthful to reflect (and so tests can assert scheduling
-/// was *attempted* for the right ids) — it never touches
-/// `flutter_local_notifications` or any platform notification API. See
-/// NOTIFICATIONS_API_REQUIREMENTS.md's "Local notification status": adding
-/// a real plugin-backed implementation of [NotificationScheduler] is future
-/// work, deliberately out of scope for this phase (no heavy notification
-/// package is added here — see that document for why).
-class MockNotificationScheduler implements NotificationScheduler {
+/// **Does not schedule a real OS-level notification** — records which
+/// reminder ids would be scheduled, in memory, applying the same rules as
+/// LocalNotificationScheduler. For tests.
+class MockNotificationScheduler extends NotificationScheduler {
   final Set<String> _scheduledReminderIds = {};
+  final Map<String, StudyReminder> _reminders = {};
+  NotificationPreferences _preferences = const NotificationPreferences();
+
+  @override
+  Future<void> applyPreferences(NotificationPreferences preferences) async {
+    _preferences = preferences;
+    final known = _reminders.values.toList();
+    _scheduledReminderIds.clear();
+    for (final reminder in known) {
+      await schedule(reminder);
+    }
+  }
 
   /// Exposed for tests/debugging only — not part of [NotificationScheduler]
   /// itself, since "what's currently scheduled" isn't a capability a real
@@ -23,7 +30,10 @@ class MockNotificationScheduler implements NotificationScheduler {
 
   @override
   Future<void> schedule(StudyReminder reminder) async {
-    if (!reminder.enabled || reminder.resolvedDays.isEmpty) {
+    _reminders[reminder.id] = reminder;
+    final oneTime = reminder.repeat == ReminderRepeat.oneTime;
+    if (!reminderShouldFire(reminder, _preferences) ||
+        (!oneTime && reminder.resolvedDays.isEmpty)) {
       _scheduledReminderIds.remove(reminder.id);
       return;
     }
@@ -32,6 +42,7 @@ class MockNotificationScheduler implements NotificationScheduler {
 
   @override
   Future<void> cancel(String reminderId) async {
+    _reminders.remove(reminderId);
     _scheduledReminderIds.remove(reminderId);
   }
 
@@ -43,15 +54,7 @@ class MockNotificationScheduler implements NotificationScheduler {
 
   @override
   Future<void> cancelAll() async {
+    _reminders.clear();
     _scheduledReminderIds.clear();
   }
 }
-
-/// Not `autoDispose`: a scheduler needs to remember what it scheduled for
-/// as long as the app runs, same reasoning as
-/// `notificationsDataSourceProvider`.
-final notificationSchedulerProvider = Provider<MockNotificationScheduler>((
-  ref,
-) {
-  return MockNotificationScheduler();
-});

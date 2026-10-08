@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/notifications_repository_impl.dart';
+import '../../data/services/local_notification_scheduler.dart';
 import '../../domain/entities/notification_preferences.dart';
 import '../../domain/repositories/notifications_repository.dart';
 import 'notification_preferences_state.dart';
@@ -23,7 +24,10 @@ class NotificationPreferencesNotifier
     state = const NotificationPreferencesLoading();
     final result = await _repository.getNotificationPreferences();
     state = result.when(
-      success: NotificationPreferencesReady.new,
+      success: (preferences) {
+        ref.read(notificationSchedulerProvider).applyPreferences(preferences);
+        return NotificationPreferencesReady(preferences);
+      },
       failure: NotificationPreferencesError.new,
     );
   }
@@ -45,7 +49,11 @@ class NotificationPreferencesNotifier
       previous: previous,
     );
     result.when(
-      success: (saved) => state = NotificationPreferencesReady(saved),
+      success: (saved) {
+        state = NotificationPreferencesReady(saved);
+        // Reminder toggles take effect on the device right away.
+        ref.read(notificationSchedulerProvider).applyPreferences(saved);
+      },
       failure: (failure) {
         state = NotificationPreferencesReady(previous, saveError: failure);
       },

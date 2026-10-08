@@ -507,5 +507,7 @@
   "homeContinueExamTitle": "تابع اختبارك",
   "homeContinueExamSubtitle": "{count, plural, =0{{count} سؤال} =1{سؤال واحد} =2{سؤالان} few{{count} أسئلة} many{{count} سؤالًا} other{{count} سؤال}} · متبقٍ {minutes} د",
   "errorReminderLimitReached": "يمكنك إضافة {max} تذكيرًا كحد أقصى. احذف تذكيرًا لإضافة آخر.",
-  "errorInvalidCustomDays": "اختر يومًا واحدًا على الأقل للتذكير المخصص."
+  "errorInvalidCustomDays": "اختر يومًا واحدًا على الأقل للتذكير المخصص.",
+  "reminderNotificationStudyBody": "حان وقت جلسة الدراسة.",
+  "reminderNotificationExamBody": "حان وقت الاستعداد لاختبارك."
 }

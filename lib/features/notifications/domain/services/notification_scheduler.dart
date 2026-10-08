@@ -1,18 +1,28 @@
+import '../entities/notification_preferences.dart';
 import '../entities/study_reminder.dart';
 
 /// Local (on-device) notification scheduling, decoupled from any specific
 /// plugin — the UI and `NotificationsRepository` depend on this interface
-/// only, never on a notification package directly, so adopting a real
-/// scheduler later (e.g. `flutter_local_notifications`) touches exactly one
-/// new implementation class, never a screen or the repository.
+/// only, never on a notification package directly.
 ///
-/// **No implementation of this interface schedules a real OS-level
-/// notification in this phase** — see `../../data/services/
-/// mock_notification_scheduler.dart`'s doc comment and NOTIFICATIONS_API_
-/// REQUIREMENTS.md's "Local notification status" section. Do not present
-/// scheduling through this interface as a working device notification to a
-/// user or reviewer.
+/// The app uses `LocalNotificationScheduler` (real device notifications);
+/// `MockNotificationScheduler` records calls for tests. Every
+/// implementation applies [applyPreferences] itself, so callers just
+/// schedule what the server has.
 abstract class NotificationScheduler {
+  /// The reminder toggles to honour from now on — reschedules everything
+  /// already scheduled under them (see reminderShouldFire).
+  Future<void> applyPreferences(NotificationPreferences preferences);
+
+  /// Replaces everything scheduled with [reminders] — after sign-in, each
+  /// sync and on app start.
+  Future<void> scheduleAll(List<StudyReminder> reminders) async {
+    await cancelAll();
+    for (final reminder in reminders) {
+      await schedule(reminder);
+    }
+  }
+
   /// Schedules (or, if [reminder.id] was already scheduled, replaces) local
   /// notifications for every day in [StudyReminder.resolvedDays] at
   /// [StudyReminder.hour]:[StudyReminder.minute]. A no-op for a reminder

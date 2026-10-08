@@ -2,10 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/app_failure.dart';
 import '../../data/repositories/notifications_repository_impl.dart';
-import '../../data/services/mock_notification_scheduler.dart';
+import '../../data/services/local_notification_scheduler.dart';
 import '../../domain/entities/study_reminder.dart';
 import '../../domain/entities/study_reminder_draft.dart';
 import '../../domain/repositories/notifications_repository.dart';
+import '../../domain/services/notification_scheduler.dart';
 import 'study_reminders_state.dart';
 
 /// Owns the Study Reminders list's fetch and every mutation (create/update/
@@ -22,7 +23,7 @@ import 'study_reminders_state.dart';
 /// dropped in later without any change to this notifier.
 class StudyRemindersNotifier extends Notifier<StudyRemindersState> {
   late NotificationsRepository _repository;
-  late MockNotificationScheduler _scheduler;
+  late NotificationScheduler _scheduler;
 
   @override
   StudyRemindersState build() {
@@ -37,9 +38,9 @@ class StudyRemindersNotifier extends Notifier<StudyRemindersState> {
     final result = await _repository.getStudyReminders();
     state = result.when(
       success: (reminders) {
-        for (final reminder in reminders) {
-          _scheduler.schedule(reminder);
-        }
+        // The server's list is the truth: anything scheduled but no longer
+        // on it (deleted on another device) goes.
+        _scheduler.scheduleAll(reminders);
         return StudyRemindersReady(reminders);
       },
       failure: StudyRemindersError.new,

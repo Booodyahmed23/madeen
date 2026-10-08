@@ -1225,5 +1225,9 @@
     }
   },
   "errorInvalidCustomDays": "Pick at least one day for a custom reminder.",
-  "@errorInvalidCustomDays": {}
+  "@errorInvalidCustomDays": {},
+  "reminderNotificationStudyBody": "It's time for your study session.",
+  "@reminderNotificationStudyBody": {},
+  "reminderNotificationExamBody": "Time to prepare for your exam.",
+  "@reminderNotificationExamBody": {}
 }
