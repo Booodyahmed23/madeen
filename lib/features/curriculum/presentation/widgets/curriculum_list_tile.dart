@@ -13,7 +13,8 @@ class CurriculumListTile extends StatelessWidget {
     required this.onTap,
   });
 
-  /// `null` disables the row: dimmed, no chevron, not tappable.
+  /// `null` disables the row like MadeenFeatureTile: muted text, no
+  /// chevron, not tappable.
 
   final String title;
   final String? subtitle;
@@ -30,51 +31,48 @@ class CurriculumListTile extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: MadeenSpace.xs),
-      child: Opacity(
-        opacity: enabled ? 1 : 0.55,
-        child: MadeenCard(
-          onTap: onTap,
-          padding: const EdgeInsets.symmetric(
-            horizontal: MadeenSpace.md,
-            // Keeps the tap target comfortably above the ~48dp minimum even
-            // with a single line of text.
-            vertical: MadeenSpace.md,
-          ),
-          child: Row(
-            children: [
-              if (leading != null) ...[
-                leading,
-                const SizedBox(width: MadeenSpace.sm),
-              ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      style: MadeenType.headlineSm.copyWith(color: t.ink),
-                    ),
-                    if (subtitle != null && subtitle.isNotEmpty) ...[
-                      const SizedBox(height: MadeenSpace.xxs),
-                      Text(
-                        subtitle,
-                        style: MadeenType.bodySm.copyWith(
-                          color: t.inkSecondary,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: MadeenSpace.xs),
-              // chevron_right mirrors itself in RTL (matchTextDirection) —
-              // picking chevron_left for RTL would double-flip it backwards.
-              if (enabled) Icon(Icons.chevron_right, color: t.inkTertiary),
+      child: MadeenCard(
+        onTap: onTap,
+        padding: const EdgeInsets.symmetric(
+          horizontal: MadeenSpace.md,
+          // Keeps the tap target comfortably above the ~48dp minimum even
+          // with a single line of text.
+          vertical: MadeenSpace.md,
+        ),
+        child: Row(
+          children: [
+            if (leading != null) ...[
+              leading,
+              const SizedBox(width: MadeenSpace.sm),
             ],
-          ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: MadeenType.headlineSm.copyWith(
+                      color: enabled ? t.ink : t.inkSecondary,
+                    ),
+                  ),
+                  if (subtitle != null && subtitle.isNotEmpty) ...[
+                    const SizedBox(height: MadeenSpace.xxs),
+                    Text(
+                      subtitle,
+                      style: MadeenType.bodySm.copyWith(color: t.inkSecondary),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: MadeenSpace.xs),
+            // chevron_right mirrors itself in RTL (matchTextDirection) —
+            // picking chevron_left for RTL would double-flip it backwards.
+            if (enabled) Icon(Icons.chevron_right, color: t.inkTertiary),
+          ],
         ),
       ),
     );
