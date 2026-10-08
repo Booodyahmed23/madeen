@@ -230,7 +230,6 @@ void main() {
       expect(inSnapshot('215'), findsOneWidget);
       expect(inSnapshot('75%'), findsOneWidget);
       expect(inRecentActivity('Variance Analysis'), findsOneWidget);
-      expect(find.textContaining('7 attempts'), findsOneWidget, reason: 'AI');
 
       await tester.tap(find.text('See Performance'));
       await tester.pumpAndSettle();

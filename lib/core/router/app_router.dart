@@ -45,6 +45,7 @@ import '../../features/study_session/presentation/screens/question_review_screen
 import '../../features/study_session/presentation/screens/study_session_results_screen.dart';
 import '../../features/study_session/presentation/screens/study_session_setup_screen.dart';
 import '../../features/study_session/presentation/screens/submission_review_screen.dart';
+import '../config/v2_features.dart';
 import 'router_refresh_notifier.dart';
 
 /// Route paths as constants so feature code never hardcodes path strings.
@@ -196,6 +197,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return isPublicRoute ? null : AppRoutes.login;
       }
       if (authState is AuthAuthenticated && isPublicRoute) {
+        return AppRoutes.home;
+      }
+
+      // V2 modules are closed unless switched on — no deep link, push tap
+      // or stale route reaches their mock content (see V2Features).
+      final v2 = ref.read(v2FeaturesProvider);
+      final location = state.matchedLocation;
+      if ((!v2.aiAnalysis &&
+              location.startsWith(AppRoutes.aiAnalysisOverview)) ||
+          (!v2.aiTutor && location == AppRoutes.aiTutor) ||
+          (!v2.courses && location.startsWith(AppRoutes.courses))) {
         return AppRoutes.home;
       }
 

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/config/v2_features.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/async_list_view.dart';
@@ -84,10 +85,12 @@ class TopicPerformanceScreen extends ConsumerWidget {
                   ),
                   child: TopicPerformanceTile(
                     topic: topic,
-                    onAnalyzeWithAi: () => context.push(
-                      AppRoutes.aiAnalysisTopic(topic.topicId),
-                      extra: topic.topicName,
-                    ),
+                    onAnalyzeWithAi: ref.watch(v2FeaturesProvider).aiAnalysis
+                        ? () => context.push(
+                            AppRoutes.aiAnalysisTopic(topic.topicId),
+                            extra: topic.topicName,
+                          )
+                        : null,
                   ),
                 ),
               ),

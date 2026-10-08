@@ -34,6 +34,7 @@ import 'package:mobile/features/performance/domain/entities/performance_overview
 import 'package:mobile/features/performance/domain/repositories/performance_repository.dart';
 import 'package:mobile/l10n/generated/app_localizations.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:mobile/core/config/v2_features.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 
@@ -177,6 +178,7 @@ Widget _wrap({
   return ProviderScope(
     retry: appRetryPolicy,
     overrides: [
+      v2FeaturesProvider.overrideWithValue(V2Features.all),
       authRepositoryProvider.overrideWithValue(authRepository),
       notificationsRepositoryProvider.overrideWithValue(
         notificationsRepository,

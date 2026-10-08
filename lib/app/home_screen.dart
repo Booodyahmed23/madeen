@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/config/v2_features.dart';
 import '../core/localization/locale_provider.dart';
 import '../core/router/app_router.dart';
 import '../core/theme/theme_mode_provider.dart';
@@ -105,8 +106,10 @@ class _HomeView extends ConsumerWidget {
             const ContinueStudyCard(),
             const PerformanceSnapshotCard(),
             const SizedBox(height: MadeenSpace.md),
-            const AiAnalysisTeaserCard(),
-            const SizedBox(height: MadeenSpace.md),
+            if (ref.watch(v2FeaturesProvider).aiAnalysis) ...[
+              const AiAnalysisTeaserCard(),
+              const SizedBox(height: MadeenSpace.md),
+            ],
             const RecentActivitySection(),
             const SizedBox(height: MadeenSpace.md),
             const UpcomingReminderCard(),
@@ -203,7 +206,8 @@ class _GreetingHero extends StatelessWidget {
   }
 }
 
-/// The four entry points as a two-column tile grid. Titles reuse each
+/// The entry points as a two-column tile grid — AI Tutor and Courses only
+/// when their V2 switches are on (see V2Features). Titles reuse each
 /// feature's own nav/entry-point strings verbatim (the same visible text
 /// the router tests look for). AI Tutor is disabled while an Exam
 /// Simulation attempt is in progress — the router's redirect is still the
@@ -219,18 +223,22 @@ class _FeatureTiles extends ConsumerWidget {
         examState is ExamActive ||
         examState is ExamTimedOut ||
         examState is ExamSubmitting;
+    final v2 = ref.watch(v2FeaturesProvider);
 
     return MadeenPairGrid(
       spacing: MadeenSpace.sm,
       children: [
-        MadeenFeatureTile(
-          icon: Icons.auto_awesome_outlined,
-          title: l10n.aiTutorTitle,
-          subtitle: examInProgress
-              ? l10n.aiTutorUnavailableDuringExam
-              : l10n.aiTutorHomeCardSubtitle,
-          onTap: examInProgress ? null : () => context.push(AppRoutes.aiTutor),
-        ),
+        if (v2.aiTutor)
+          MadeenFeatureTile(
+            icon: Icons.auto_awesome_outlined,
+            title: l10n.aiTutorTitle,
+            subtitle: examInProgress
+                ? l10n.aiTutorUnavailableDuringExam
+                : l10n.aiTutorHomeCardSubtitle,
+            onTap: examInProgress
+                ? null
+                : () => context.push(AppRoutes.aiTutor),
+          ),
         MadeenFeatureTile(
           icon: Icons.timer_outlined,
           title: l10n.navExamSimulation,
@@ -243,12 +251,13 @@ class _FeatureTiles extends ConsumerWidget {
           subtitle: l10n.homeCurriculumCardSubtitle,
           onTap: () => context.push(AppRoutes.curriculum),
         ),
-        MadeenFeatureTile(
-          icon: Icons.ondemand_video_outlined,
-          title: l10n.courseHomeCardTitle,
-          subtitle: l10n.courseHomeCardSubtitle,
-          onTap: () => context.push(AppRoutes.courses),
-        ),
+        if (v2.courses)
+          MadeenFeatureTile(
+            icon: Icons.ondemand_video_outlined,
+            title: l10n.courseHomeCardTitle,
+            subtitle: l10n.courseHomeCardSubtitle,
+            onTap: () => context.push(AppRoutes.courses),
+          ),
       ],
     );
   }

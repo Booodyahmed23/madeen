@@ -26,6 +26,7 @@ import 'package:mobile/features/performance/domain/repositories/performance_repo
 import 'package:mobile/features/notifications/data/repositories/notifications_repository_impl.dart';
 import 'package:mobile/features/notifications/domain/repositories/notifications_repository.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:mobile/core/config/v2_features.dart';
 
 import '../../features/subscription/access_overrides.dart';
 
@@ -153,6 +154,7 @@ Widget _app({
   return ProviderScope(
     retry: appRetryPolicy,
     overrides: [
+      v2FeaturesProvider.overrideWithValue(V2Features.all),
       ...accessOverrides(),
       authRepositoryProvider.overrideWithValue(authRepository),
       performanceRepositoryProvider.overrideWithValue(performanceRepository),

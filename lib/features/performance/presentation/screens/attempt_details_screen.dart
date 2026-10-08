@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/app_failure.dart';
+import '../../../../core/config/v2_features.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../domain/entities/attempt_details.dart';
@@ -55,14 +56,25 @@ class AttemptDetailsScreen extends ConsumerWidget {
             await ref.read(attemptDetailsProvider(attemptId).future);
           },
         ),
-        data: (details) => _DetailsBody(details: details, l10n: l10n),
+        data: (details) => _DetailsBody(
+          details: details,
+          l10n: l10n,
+          showAiAnalysis: ref.watch(v2FeaturesProvider).aiAnalysis,
+        ),
       ),
     );
   }
 }
 
 class _DetailsBody extends StatelessWidget {
-  const _DetailsBody({required this.details, required this.l10n});
+  const _DetailsBody({
+    required this.details,
+    required this.l10n,
+    required this.showAiAnalysis,
+  });
+
+  /// The V2 "Analyze with AI" button (see V2Features).
+  final bool showAiAnalysis;
 
   final AttemptDetails details;
   final AppLocalizations l10n;
@@ -169,13 +181,15 @@ class _DetailsBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: MadeenSpace.lg),
-        MadeenPrimaryButton(
-          label: l10n.aiAnalysisAnalyzeWithAiButton,
-          icon: Icons.psychology_outlined,
-          onPressed: () =>
-              context.push(AppRoutes.aiAnalysisAttempt(summary.attemptId)),
-        ),
-        const SizedBox(height: MadeenSpace.sm),
+        if (showAiAnalysis) ...[
+          MadeenPrimaryButton(
+            label: l10n.aiAnalysisAnalyzeWithAiButton,
+            icon: Icons.psychology_outlined,
+            onPressed: () =>
+                context.push(AppRoutes.aiAnalysisAttempt(summary.attemptId)),
+          ),
+          const SizedBox(height: MadeenSpace.sm),
+        ],
         SizedBox(
           width: double.infinity,
           child: MadeenSecondaryButton(

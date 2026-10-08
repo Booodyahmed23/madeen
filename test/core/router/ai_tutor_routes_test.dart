@@ -27,6 +27,7 @@ import 'package:mobile/features/performance/domain/entities/performance_filter.d
 import 'package:mobile/features/performance/domain/entities/performance_overview.dart';
 import 'package:mobile/features/performance/domain/repositories/performance_repository.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:mobile/core/config/v2_features.dart';
 
 import '../../features/subscription/access_overrides.dart';
 import '../../features/exam_simulation/exam_fixtures.dart';
@@ -120,6 +121,7 @@ Widget _app({
   ).thenAnswer((_) async => Result.success(_insufficientAnalysis));
 
   final overrides = [
+    v2FeaturesProvider.overrideWithValue(V2Features.all),
     ...accessOverrides(),
     authRepositoryProvider.overrideWithValue(authRepository),
     notificationsRepositoryProvider.overrideWithValue(notificationsRepository),

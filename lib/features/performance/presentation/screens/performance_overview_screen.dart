@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/config/v2_features.dart';
 import '../../../../core/error/app_failure.dart';
 import '../../../../core/error/failure_messages.dart';
 import '../../../../core/router/app_router.dart';
@@ -56,10 +57,12 @@ class PerformanceOverviewScreen extends ConsumerWidget {
                 children: [
                   const AttemptTypeFilterBar(),
                   const SizedBox(height: MadeenSpace.md),
-                  _AiAnalysisEntryCard(
-                    onTap: () => context.push(AppRoutes.aiAnalysisOverview),
-                  ),
-                  const SizedBox(height: MadeenSpace.md),
+                  if (ref.watch(v2FeaturesProvider).aiAnalysis) ...[
+                    _AiAnalysisEntryCard(
+                      onTap: () => context.push(AppRoutes.aiAnalysisOverview),
+                    ),
+                    const SizedBox(height: MadeenSpace.md),
+                  ],
                   ...overviewAsync.when(
                     loading: () => const [MadeenLoadingState()],
                     error: (error, _) => [
