@@ -84,7 +84,7 @@ class _ActivityRow extends StatelessWidget {
 
     return MadeenListRow(
       icon: isStudySession ? Icons.menu_book_outlined : Icons.timer_outlined,
-      title: attempt.contentLabel,
+      title: attempt.contentLabel.isEmpty ? typeLabel : attempt.contentLabel,
       subtitle: '$dateLabel · $typeLabel · $questionsLabel',
       trailingValue: scoreLabel,
       semanticLabel:

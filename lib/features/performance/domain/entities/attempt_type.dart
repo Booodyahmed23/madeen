@@ -13,9 +13,11 @@ enum AttemptType {
   /// UI — see performance_repository_impl.dart.
   static AttemptType fromWire(String value) {
     switch (value) {
-      case 'STUDY_SESSION':
+      // The API's values, and the older ones still in records saved on
+      // the device before the API existed.
+      case 'STUDY' || 'STUDY_SESSION':
         return AttemptType.studySession;
-      case 'EXAM_SIMULATION':
+      case 'EXAM' || 'EXAM_SIMULATION':
         return AttemptType.examSimulation;
       default:
         throw FormatException('Unknown attempt type: $value');
@@ -23,7 +25,7 @@ enum AttemptType {
   }
 
   String toWire() => switch (this) {
-    AttemptType.studySession => 'STUDY_SESSION',
-    AttemptType.examSimulation => 'EXAM_SIMULATION',
+    AttemptType.studySession => 'STUDY',
+    AttemptType.examSimulation => 'EXAM',
   };
 }

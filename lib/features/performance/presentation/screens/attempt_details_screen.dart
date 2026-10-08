@@ -87,7 +87,7 @@ class _DetailsBody extends StatelessWidget {
       ),
       children: [
         Text(
-          summary.contentLabel,
+          summary.contentLabel.isEmpty ? typeLabel : summary.contentLabel,
           style: Theme.of(context).textTheme.headlineLarge!
               .copyWith(color: t.ink),
         ),

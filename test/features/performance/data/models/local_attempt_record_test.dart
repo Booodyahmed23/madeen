@@ -39,7 +39,13 @@ void main() {
     expect(copy.type, AttemptType.examSimulation);
     expect(copy.topicId, isNull);
     expect(copy.topicName, isNull);
-    expect(copy.toJson()['type'], 'EXAM_SIMULATION');
+    expect(copy.toJson()['type'], 'EXAM');
+  });
+
+  test('records saved before the API (old type values) still load', () {
+    final json = examRecord().toJson()..['type'] = 'EXAM_SIMULATION';
+
+    expect(LocalAttemptRecord.fromJson(json).type, AttemptType.examSimulation);
   });
 
   test('rebuilds the Performance read models', () {

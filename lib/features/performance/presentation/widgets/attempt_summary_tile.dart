@@ -34,7 +34,7 @@ class AttemptSummaryTile extends StatelessWidget {
 
     return MadeenListRow(
       icon: typeIcon,
-      title: attempt.contentLabel,
+      title: attempt.contentLabel.isEmpty ? typeLabel : attempt.contentLabel,
       subtitle: '$dateLabel · $typeLabel · $questionsLabel',
       trailingValue: scoreLabel,
       onTap: onTap,

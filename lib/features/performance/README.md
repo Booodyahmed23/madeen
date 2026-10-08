@@ -8,6 +8,29 @@ root for the proposed backend contract; that backend module does not exist
 yet, so this feature runs on a deterministic local fixture by default (see
 `AppConfig.isPerformanceApiAvailable`).
 
+## API mode (`PERFORMANCE_API_AVAILABLE`)
+
+`PerformanceRemoteDataSource` reads `/results/*` (docs/MOBILE_API_CONTRACT.md
+§A5):
+
+- **Overview** — `GET /results/overview`; `overallScorePercent =
+  scorePercent ?? 0`, `averageTimePerQuestion = avgTimeSeconds ?? 0`.
+  Best/weak topics still come from topic performance.
+- **Topics** — `GET /results/performance/topics`; `total` is the answered
+  count (only revealed answers are counted), so `answered = total` and
+  `questionsAttempted` falls back to `total`.
+- **History** — `GET /results/history` paged by `page`/`limit`. Rows that
+  aren't finalised (`finalizedAt: null`) are left out: Home's "Continue"
+  cards offer those. The label is the attempt's topics resolved through
+  the curriculum ("Budgeting +2"), falling back to the attempt type.
+- **Details** — the attempt itself: `GET /study/sessions/:id`, or on a 404
+  `GET /exams/attempts/:id` (ids are UUIDs, so they can't collide), with
+  the study/exam result derivations and per-topic grouping.
+- The `type` filter is `STUDY` / `EXAM`; "all" sends none.
+
+In this mode nothing is recorded on the device — the server already has
+every attempt.
+
 ## Why this is its own feature, not part of Study Session or Exam Simulation
 
 This module **never scores an attempt or owns a state machine** — Study

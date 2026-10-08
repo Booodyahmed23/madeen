@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../curriculum/presentation/providers/curriculum_providers.dart';
 import '../../domain/entities/performance_filter.dart';
 import '../models/attempt_details_model.dart';
 import '../models/attempt_history_page_model.dart';
@@ -47,7 +48,10 @@ abstract class PerformanceDataSource {
 /// so nothing can be double-counted.
 final performanceDataSourceProvider = Provider<PerformanceDataSource>((ref) {
   if (ref.watch(performanceApiAvailableProvider)) {
-    return PerformanceRemoteDataSource(ref.watch(apiClientProvider));
+    return PerformanceRemoteDataSource(
+      ref.watch(apiClientProvider),
+      labelTopics: (topicIds) => _labelTopics(ref, topicIds),
+    );
   }
   return PerformanceMockDataSource(
     localAttempts: ref.watch(localAttemptsProvider),
@@ -59,6 +63,23 @@ final performanceDataSourceProvider = Provider<PerformanceDataSource>((ref) {
 /// prove both the mock-mode merge and the API-mode "never record, never
 /// merge" behavior (a compile-time constant alone can't be flipped in a
 /// test).
+/// "First topic +N", with names from the curriculum. A topic the student
+/// can't see any more is left out of the name but still counted.
+Future<String> _labelTopics(Ref ref, List<String> topicIds) async {
+  if (topicIds.isEmpty) return '';
+  String? first;
+  for (final id in topicIds) {
+    try {
+      first = await ref.read(topicNameProvider(id).future);
+    } catch (_) {
+      first = null;
+    }
+    if (first != null) break;
+  }
+  if (first == null) return '';
+  return topicIds.length == 1 ? first : '$first +${topicIds.length - 1}';
+}
+
 final performanceApiAvailableProvider = Provider<bool>(
   (ref) => AppConfig.isPerformanceApiAvailable,
 );
