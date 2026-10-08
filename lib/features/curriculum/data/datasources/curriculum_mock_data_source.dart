@@ -134,6 +134,15 @@ class CurriculumMockDataSource implements CurriculumDataSource {
             order: 4,
           ),
         ];
+      case 'fmaa-part-1':
+        return const [
+          UnitModel(
+            id: 'unit-fmaa-accounting',
+            partId: 'fmaa-part-1',
+            name: 'Financial Accounting',
+            order: 0,
+          ),
+        ];
       case 'cma-part-2':
         return const [
           UnitModel(
@@ -170,6 +179,33 @@ class CurriculumMockDataSource implements CurriculumDataSource {
             unitId: 'unit-financial-planning',
             name: 'Forecasting Techniques',
             order: 1,
+          ),
+        ];
+      case 'unit-financial-statement-analysis':
+        return const [
+          SubUnitModel(
+            id: 'subunit-ratio-analysis',
+            unitId: 'unit-financial-statement-analysis',
+            name: 'Ratio Analysis',
+            order: 0,
+          ),
+        ];
+      case 'unit-corporate-finance':
+        return const [
+          SubUnitModel(
+            id: 'subunit-capital-budgeting',
+            unitId: 'unit-corporate-finance',
+            name: 'Capital Budgeting',
+            order: 0,
+          ),
+        ];
+      case 'unit-fmaa-accounting':
+        return const [
+          SubUnitModel(
+            id: 'subunit-fmaa-statements',
+            unitId: 'unit-fmaa-accounting',
+            name: 'Financial Statements',
+            order: 0,
           ),
         ];
       case 'unit-cost-management':
@@ -210,6 +246,33 @@ class CurriculumMockDataSource implements CurriculumDataSource {
             subUnitId: 'subunit-budgeting',
             name: 'Variance Analysis',
             order: 2,
+          ),
+        ];
+      case 'subunit-ratio-analysis':
+        return const [
+          TopicModel(
+            id: 'topic-liquidity-ratios',
+            subUnitId: 'subunit-ratio-analysis',
+            name: 'Liquidity Ratios',
+            order: 0,
+          ),
+        ];
+      case 'subunit-capital-budgeting':
+        return const [
+          TopicModel(
+            id: 'topic-npv',
+            subUnitId: 'subunit-capital-budgeting',
+            name: 'Net Present Value',
+            order: 0,
+          ),
+        ];
+      case 'subunit-fmaa-statements':
+        return const [
+          TopicModel(
+            id: 'topic-income-statement',
+            subUnitId: 'subunit-fmaa-statements',
+            name: 'Income Statement',
+            order: 0,
           ),
         ];
       case 'subunit-cost-concepts':

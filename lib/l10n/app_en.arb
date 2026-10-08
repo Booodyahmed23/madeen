@@ -519,7 +519,7 @@
   "@examAreYouSure": {},
   "examLeaveExamTitle": "Leave this exam?",
   "@examLeaveExamTitle": {},
-  "examLeaveExamMessage": "Your progress in this exam will be lost if you leave now.",
+  "examLeaveExamMessage": "Your answers are saved, but the timer keeps running. You can return to this exam from Home until time runs out.",
   "@examLeaveExamMessage": {},
   "examLeaveExamConfirm": "Leave",
   "@examLeaveExamConfirm": {},
@@ -1053,12 +1053,6 @@
   "@examSetupAllSubUnits": {},
   "examSetupTimeLimitLabel": "Time limit",
   "@examSetupTimeLimitLabel": {},
-  "examSetupOrderLabel": "Question order",
-  "@examSetupOrderLabel": {},
-  "examSetupOrderOriginal": "Original",
-  "@examSetupOrderOriginal": {},
-  "examSetupOrderRandom": "Random",
-  "@examSetupOrderRandom": {},
   "examSetupRulesTitle": "Exam conditions",
   "@examSetupRulesTitle": {},
   "examSetupRulesBody": "The timer counts down and can't be paused. Answers aren't marked and explanations stay hidden until you submit. When time runs out, your simulation is submitted automatically.",
@@ -1212,5 +1206,24 @@
     }
   },
   "homeContinueStudyAction": "Continue",
-  "@homeContinueStudyAction": {}
+  "@homeContinueStudyAction": {},
+  "examSetupNoQuestions": "No questions are available for this selection yet. Try a wider scope.",
+  "@examSetupNoQuestions": {},
+  "examAnswerNotSaved": "Your answer couldn't be saved. Check your connection and try again.",
+  "@examAnswerNotSaved": {},
+  "examActionFailed": "That didn't go through. Check your connection and try again.",
+  "@examActionFailed": {},
+  "homeContinueExamTitle": "Continue your exam",
+  "@homeContinueExamTitle": {},
+  "homeContinueExamSubtitle": "{count, plural, =1{1 question} other{{count} questions}} · {minutes} min left",
+  "@homeContinueExamSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  }
 }

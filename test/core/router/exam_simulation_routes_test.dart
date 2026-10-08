@@ -18,13 +18,7 @@ import 'package:mobile/features/curriculum/domain/entities/part.dart';
 import 'package:mobile/features/curriculum/domain/entities/program.dart';
 import 'package:mobile/features/curriculum/domain/repositories/curriculum_repository.dart';
 import 'package:mobile/features/exam_simulation/data/repositories/exam_repository_impl.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_answer_choice.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_attempt.dart';
 import 'package:mobile/features/exam_simulation/domain/entities/exam_config.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_question.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_question_type.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_result.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_review_item.dart';
 import 'package:mobile/features/exam_simulation/domain/repositories/exam_repository.dart';
 import 'package:mobile/features/notifications/data/repositories/notifications_repository_impl.dart';
 import 'package:mobile/features/notifications/domain/repositories/notifications_repository.dart';
@@ -35,8 +29,8 @@ import 'package:mobile/features/performance/domain/entities/performance_overview
 import 'package:mobile/features/performance/domain/repositories/performance_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
-import '../../features/curriculum/curriculum_test_tree.dart';
 import '../../features/subscription/access_overrides.dart';
+import '../../features/exam_simulation/exam_fixtures.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 
@@ -80,22 +74,6 @@ const _user = AuthUser(
 );
 const _session = AuthSession(user: _user, accessToken: 'access-token-1');
 
-final _attempt = ExamAttempt(
-  attemptId: 'attempt-1',
-  durationSeconds: 60,
-  questions: [
-    ExamQuestion(
-      id: 'q1',
-      text: 'Which cost behavior adjusts with volume under a flexible budget?',
-      type: ExamQuestionType.multipleChoiceSingle,
-      choices: const [
-        ExamAnswerChoice(id: 'q1-a', text: 'Variable cost', order: 0),
-        ExamAnswerChoice(id: 'q1-b', text: 'Fixed cost', order: 1),
-      ],
-    ),
-  ],
-);
-
 void main() {
   setUpAll(() {
     registerFallbackValue(
@@ -106,6 +84,7 @@ void main() {
         partName: 'x',
         questionCount: 25,
         duration: Duration(minutes: 30),
+        topicIds: ['topic-1'],
       ),
     );
     registerFallbackValue(<String, String?>{});
@@ -129,58 +108,21 @@ void main() {
       (_) async =>
           const Result.success([Program(id: 'program-cma', name: 'CMA')]),
     );
-    when(() => curriculumRepository.getProgramTree('program-cma')).thenAnswer(
-      (_) async => Result.success(
-        testCurriculumTree(
-          program: const Program(id: 'program-cma', name: 'CMA'),
-          parts: const [
-            Part(id: 'cma-part-1', programId: 'program-cma', name: 'Part 1'),
-          ],
-        ),
-      ),
-    );
+    when(() => curriculumRepository.getProgramTree('program-cma'))
+        .thenAnswer((_) async => Result.success(examCurriculumTree()));
 
-    final examRepository = MockExamRepository();
-    when(() => examRepository.startExam(any()))
-        .thenAnswer((_) async => Result.success(_attempt));
-    when(
-      () => examRepository.submitExam(
-        attemptId: any(named: 'attemptId'),
-        answers: any(named: 'answers'),
-        flaggedQuestionIds: any(named: 'flaggedQuestionIds'),
-        timeTaken: any(named: 'timeTaken'),
-      ),
-    ).thenAnswer(
-      (_) async => const Result.success(
-        ExamResult(
-          attemptId: 'attempt-1',
-          totalQuestions: 1,
-          answered: 1,
-          unanswered: 0,
-          correct: 1,
-          incorrect: 0,
-          scorePercent: 100,
-          durationTaken: Duration(seconds: 20),
-          completionStatus: 'completed',
-        ),
-      ),
-    );
-    when(() => examRepository.getReview(any())).thenAnswer(
-      (_) async => const Result.success([
-        ExamReviewItem(
-          questionId: 'q1',
-          questionText: 'Which cost behavior adjusts with volume under a flexible budget?',
-          choices: [
-            ExamAnswerChoice(id: 'q1-a', text: 'Variable cost', order: 0),
-            ExamAnswerChoice(id: 'q1-b', text: 'Fixed cost', order: 1),
-          ],
+    final examRepository = FakeExamRepository(
+      remainingSeconds: 60,
+      submittedAfter: const Duration(seconds: 20),
+      questions: const [
+        FakeExamQuestion(
+          id: 'q1',
+          text: 'Which cost behavior adjusts with volume under a flexible budget?',
+          choices: {'q1-a': 'Variable cost', 'q1-b': 'Fixed cost'},
           correctChoiceId: 'q1-a',
-          selectedChoiceId: 'q1-a',
-          isCorrect: true,
-          wasFlagged: false,
           explanation: 'Variable costs scale with volume; fixed costs do not.',
         ),
-      ]),
+      ],
     );
 
     final notificationsRepository = MockNotificationsRepository();
@@ -260,7 +202,7 @@ void main() {
     expect(find.text('CMA'), findsNothing);
     expect(find.text('Part 1'), findsNothing);
     expect(find.text('01:00'), findsOneWidget);
-    verify(() => examRepository.startExam(any())).called(1);
+    expect(examRepository.startedWith, hasLength(1));
 
     await tester.tap(find.text('Variable cost'));
     await tester.pump();
@@ -279,7 +221,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Submit'));
     await tester.pumpAndSettle();
-    expect(find.text('100%'), findsOneWidget);
+    expect(find.text('100%'), findsWidgets);
 
     // Results -> Post-Exam Review
     await tester.ensureVisible(

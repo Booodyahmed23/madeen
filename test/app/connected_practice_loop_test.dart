@@ -16,10 +16,6 @@ import 'package:mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:mobile/features/curriculum/domain/entities/part.dart';
 import 'package:mobile/features/curriculum/domain/entities/program.dart';
 import 'package:mobile/features/exam_simulation/data/repositories/exam_repository_impl.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_answer_choice.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_attempt.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_question.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_question_type.dart';
 import 'package:mobile/features/exam_simulation/domain/repositories/exam_repository.dart';
 import 'package:mobile/features/study_session/data/repositories/study_session_repository_impl.dart';
 import 'package:mobile/features/study_session/domain/repositories/study_session_repository.dart';
@@ -28,6 +24,10 @@ import 'package:mocktail/mocktail.dart';
 import '../features/performance/local_attempt_test_data.dart';
 import '../features/subscription/access_overrides.dart';
 import '../features/study_session/study_session_fixtures.dart';
+
+import 'package:mobile/core/network/paginated.dart';
+
+import '../features/exam_simulation/exam_fixtures.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 
@@ -87,32 +87,29 @@ void main() {
     );
 
     exam = MockExamRepository();
-    when(() => exam.startExam(any())).thenAnswer(
+    when(() => exam.startExam(any()))
+        .thenAnswer((_) async => Result.success(cmaPart2Attempt()));
+    when(
+      () => exam.answerQuestion(
+        attemptId: any(named: 'attemptId'),
+        questionId: any(named: 'questionId'),
+        choiceId: any(named: 'choiceId'),
+        timeSpentSeconds: any(named: 'timeSpentSeconds'),
+      ),
+    ).thenAnswer((_) async => Result.success(cmaPart2Attempt(answered: 1)));
+    when(
+      () => exam.listAttempts(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer(
       (_) async => const Result.success(
-        ExamAttempt(
-          attemptId: 'mock-attempt-0',
-          questions: [
-            ExamQuestion(
-              id: 'eq1',
-              text: 'Exam question',
-              type: ExamQuestionType.multipleChoiceSingle,
-              choices: [ExamAnswerChoice(id: 'ec1', text: 'Exam answer')],
-            ),
-          ],
-          durationSeconds: 1800,
-        ),
+        Paginated(items: [], page: 1, limit: 20, total: 0, totalPages: 0),
       ),
     );
-    when(
-      () => exam.submitExam(
-        attemptId: any(named: 'attemptId'),
-        answers: any(named: 'answers'),
-        flaggedQuestionIds: any(named: 'flaggedQuestionIds'),
-        timeTaken: any(named: 'timeTaken'),
-      ),
-    ).thenAnswer((_) async => const Result.success(cmaPart2Result));
-    when(() => exam.getReview(any()))
-        .thenAnswer((_) async => const Result.success([]));
+    when(() => exam.submitExam(any())).thenAnswer(
+      (_) async => Result.success(cmaPart2Attempt(status: 'SUBMITTED')),
+    );
   });
 
   /// One "app launch" on a fresh container (SharedPreferences persists
@@ -204,14 +201,15 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Start exam'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Exam answer'));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, 'Review'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Question navigator'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Submit Exam'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Submit'));
     await tester.pumpAndSettle();
-    expect(find.text('8%'), findsOneWidget, reason: 'on Results');
+    // Overall, and the single topic's breakdown.
+    expect(find.text('8%'), findsNWidgets(2), reason: 'on Results');
     await tester.ensureVisible(find.widgetWithText(FilledButton, 'Done'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Done'));

@@ -8,11 +8,6 @@ import 'package:mobile/features/auth/domain/entities/auth_session.dart';
 import 'package:mobile/features/auth/domain/entities/auth_user.dart';
 import 'package:mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:mobile/features/exam_simulation/data/repositories/exam_repository_impl.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_answer_choice.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_attempt.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_question.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_question_type.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_review_item.dart';
 import 'package:mobile/features/exam_simulation/domain/repositories/exam_repository.dart';
 import 'package:mobile/features/exam_simulation/presentation/providers/exam_notifier.dart';
 import 'package:mobile/features/exam_simulation/presentation/providers/exam_state.dart';
@@ -32,6 +27,10 @@ import 'package:mocktail/mocktail.dart';
 import '../features/performance/local_attempt_test_data.dart';
 import '../features/study_session/study_session_fixtures.dart';
 
+import 'package:mobile/core/network/paginated.dart';
+
+import '../features/exam_simulation/exam_fixtures.dart';
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 class MockStudySessionRepository extends Mock
@@ -48,13 +47,6 @@ const _session = AuthSession(
     role: 'USER',
   ),
   accessToken: 'token',
-);
-
-const _examQuestion = ExamQuestion(
-  id: 'eq1',
-  text: 'EQ1',
-  type: ExamQuestionType.multipleChoiceSingle,
-  choices: [ExamAnswerChoice(id: 'ec1', text: 'A')],
 );
 
 void main() {
@@ -83,25 +75,29 @@ void main() {
     );
 
     exam = MockExamRepository();
-    when(() => exam.startExam(any())).thenAnswer(
+    when(() => exam.startExam(any()))
+        .thenAnswer((_) async => Result.success(cmaPart2Attempt()));
+    when(
+      () => exam.answerQuestion(
+        attemptId: any(named: 'attemptId'),
+        questionId: any(named: 'questionId'),
+        choiceId: any(named: 'choiceId'),
+        timeSpentSeconds: any(named: 'timeSpentSeconds'),
+      ),
+    ).thenAnswer((_) async => Result.success(cmaPart2Attempt(answered: 1)));
+    when(
+      () => exam.listAttempts(
+        page: any(named: 'page'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer(
       (_) async => const Result.success(
-        ExamAttempt(
-          attemptId: 'mock-attempt-0',
-          questions: [_examQuestion],
-          durationSeconds: 1800,
-        ),
+        Paginated(items: [], page: 1, limit: 20, total: 0, totalPages: 0),
       ),
     );
-    when(
-      () => exam.submitExam(
-        attemptId: any(named: 'attemptId'),
-        answers: any(named: 'answers'),
-        flaggedQuestionIds: any(named: 'flaggedQuestionIds'),
-        timeTaken: any(named: 'timeTaken'),
-      ),
-    ).thenAnswer((_) async => const Result.success(cmaPart2Result));
-    when(() => exam.getReview(any()))
-        .thenAnswer((_) async => const Result.success([]));
+    when(() => exam.submitExam(any())).thenAnswer(
+      (_) async => Result.success(cmaPart2Attempt(status: 'SUBMITTED')),
+    );
 
     container = ProviderContainer(
       overrides: [
@@ -171,20 +167,24 @@ void main() {
     'a completed Exam records its post-submission per-topic breakdown',
     () async {
       await setUpContainer();
-      when(() => exam.getReview(any())).thenAnswer(
-        (_) async => const Result.success([
-          ExamReviewItem(
-            questionId: 'eq1',
-            questionText: 'EQ1',
-            choices: [ExamAnswerChoice(id: 'ec1', text: 'A')],
-            correctChoiceId: 'ec1',
-            selectedChoiceId: 'ec1',
-            isCorrect: true,
-            wasFlagged: false,
-            topicId: 'topic-master-budget',
-            topicName: 'Master Budget',
+      when(() => exam.submitExam(any())).thenAnswer(
+        (_) async => Result.success(
+          fakeAttempt(
+            id: 'mock-attempt-0',
+            status: 'SUBMITTED',
+            questions: const [
+              FakeExamQuestion(
+                id: 'eq1',
+                text: 'EQ1',
+                choices: {'ec1': 'A', 'ec2': 'B'},
+                correctChoiceId: 'ec1',
+                selectedChoiceId: 'ec1',
+                topicId: 'topic-master-budget',
+                topicName: 'Master Budget',
+              ),
+            ],
           ),
-        ]),
+        ),
       );
 
       await completeExam();

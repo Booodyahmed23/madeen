@@ -1,35 +1,38 @@
 import '../../../../core/error/result.dart';
+import '../../../../core/network/paginated.dart';
 import '../entities/exam_attempt.dart';
 import '../entities/exam_config.dart';
-import '../entities/exam_result.dart';
-import '../entities/exam_review_item.dart';
 
-/// The mobile app's only window onto Exam Simulation data — presentation
-/// code depends on this interface, never on a concrete data source (see
-/// EXAM_SIMULATION_API_REQUIREMENTS.md at the repo root of mobile/ for the
-/// proposed backend contract this mirrors).
+/// The mobile app's only window onto exam attempts (contract §A4). Every
+/// call that changes an attempt returns the whole attempt as the server now
+/// has it.
 abstract class ExamRepository {
   Future<Result<ExamAttempt>> startExam(ExamConfig config);
 
-  /// Reloads an in-progress attempt by id. Not wired into any screen this
-  /// phase (there is no persistence layer to reconnect a killed app to a
-  /// running attempt id yet — see this feature's README "Known
-  /// limitations") but kept on the interface since
-  /// EXAM_SIMULATION_API_REQUIREMENTS.md lists it as a required backend
-  /// operation and the mock/remote data sources already implement it.
   Future<Result<ExamAttempt>> getAttempt(String attemptId);
 
-  /// Finalizes the attempt and returns the authoritative [ExamResult].
-  /// `answers` is the complete question-id → selected-choice-id map (nulls
-  /// allowed for unanswered questions); `flaggedQuestionIds` is sent for
-  /// the post-exam review only — it never affects scoring.
-  Future<Result<ExamResult>> submitExam({
-    required String attemptId,
-    required Map<String, String?> answers,
-    required Set<String> flaggedQuestionIds,
-    required Duration timeTaken,
+  /// Newest first.
+  Future<Result<Paginated<ExamAttemptSummary>>> listAttempts({
+    int page = 1,
+    int limit = 20,
   });
 
-  /// Full per-question review — only meaningful after [submitExam].
-  Future<Result<List<ExamReviewItem>>> getReview(String attemptId);
+  /// Records the student's choice. [timeSpentSeconds] is *added* to the
+  /// question's stored total.
+  Future<Result<ExamAttempt>> answerQuestion({
+    required String attemptId,
+    required String questionId,
+    required String choiceId,
+    int? timeSpentSeconds,
+  });
+
+  Future<Result<ExamAttempt>> flagQuestion({
+    required String attemptId,
+    required String questionId,
+    required bool flagged,
+  });
+
+  /// Idempotent: submitting a finished attempt returns it as it is — an
+  /// expired one comes back `EXPIRED`.
+  Future<Result<ExamAttempt>> submitExam(String attemptId);
 }

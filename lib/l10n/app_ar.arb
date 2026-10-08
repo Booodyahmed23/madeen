@@ -216,7 +216,7 @@
   "examReviewButton": "مراجعة",
   "examAreYouSure": "هل أنت متأكد؟",
   "examLeaveExamTitle": "هل تريد مغادرة هذا الاختبار؟",
-  "examLeaveExamMessage": "سيتم فقدان تقدمك في هذا الاختبار إذا غادرت الآن.",
+  "examLeaveExamMessage": "إجاباتك محفوظة، لكن المؤقت يستمر في العد. يمكنك العودة إلى هذا الاختبار من الصفحة الرئيسية حتى ينتهي الوقت.",
   "examLeaveExamConfirm": "مغادرة",
   "examLeaveExamCancel": "البقاء",
   "examQuestionStatusAnswered": "تمت الإجابة",
@@ -453,9 +453,6 @@
   "examSetupAllUnits": "جميع الوحدات",
   "examSetupAllSubUnits": "جميع الوحدات الفرعية",
   "examSetupTimeLimitLabel": "الوقت المحدد",
-  "examSetupOrderLabel": "ترتيب الأسئلة",
-  "examSetupOrderOriginal": "الترتيب الأصلي",
-  "examSetupOrderRandom": "عشوائي",
   "examSetupRulesTitle": "ظروف الاختبار",
   "examSetupRulesBody": "يعدّ المؤقت تنازليًا ولا يمكن إيقافه مؤقتًا. لا تُصحَّح الإجابات وتبقى الشروح مخفية حتى ترسل المحاكاة. عند انتهاء الوقت تُرسل المحاكاة تلقائيًا.",
   "examNavigatorButton": "التنقل بين الأسئلة",
@@ -508,5 +505,10 @@
   "studySessionActionFailed": "لم يكتمل الإجراء. تحقّق من اتصالك وحاول مرة أخرى.",
   "homeContinueStudyTitle": "تابع الدراسة",
   "homeContinueStudySubtitle": "{count, plural, =0{{count} سؤال} =1{سؤال واحد} =2{سؤالان} few{{count} أسئلة} many{{count} سؤالًا} other{{count} سؤال}} · {topic}",
-  "homeContinueStudyAction": "متابعة"
+  "homeContinueStudyAction": "متابعة",
+  "examSetupNoQuestions": "لا توجد أسئلة متاحة لهذا الاختيار بعد. جرّب نطاقًا أوسع.",
+  "examAnswerNotSaved": "تعذّر حفظ إجابتك. تحقّق من اتصالك وحاول مرة أخرى.",
+  "examActionFailed": "لم يكتمل الإجراء. تحقّق من اتصالك وحاول مرة أخرى.",
+  "homeContinueExamTitle": "تابع اختبارك",
+  "homeContinueExamSubtitle": "{count, plural, =0{{count} سؤال} =1{سؤال واحد} =2{سؤالان} few{{count} أسئلة} many{{count} سؤالًا} other{{count} سؤال}} · متبقٍ {minutes} د"
 }

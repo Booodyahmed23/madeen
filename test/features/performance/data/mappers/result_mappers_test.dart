@@ -60,6 +60,7 @@ void main() {
         partName: 'Part 1',
         questionCount: 80,
         duration: Duration(hours: 4),
+        topicIds: ['topic-1'],
       );
       const result = ExamResult(
         attemptId: 'attempt-1',

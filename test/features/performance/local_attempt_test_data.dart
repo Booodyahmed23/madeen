@@ -35,6 +35,7 @@ const cmaPart2Config = ExamConfig(
   partName: 'Part 2',
   questionCount: 25,
   duration: Duration(minutes: 30),
+  topicIds: ['topic-cost-behavior'],
 );
 
 const cmaPart2Result = ExamResult(

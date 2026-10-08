@@ -23,29 +23,10 @@ const Map<int, Duration> _presetDurations = {
 Duration examDurationFor(int questionCount) =>
     _presetDurations[questionCount] ?? Duration(seconds: questionCount * 90);
 
-/// The order questions are served in. A request to the server, which
-/// decides the actual order it returns (see [ExamAttempt.questions]).
-enum ExamQuestionOrder {
-  original,
-  random;
-
-  String toWire() => switch (this) {
-    ExamQuestionOrder.original => 'original',
-    ExamQuestionOrder.random => 'random',
-  };
-}
-
-/// What the student configured before starting. The exam is scoped to a
-/// certification Program + Part (the level real exams are organized at),
-/// optionally narrowed to one Unit and, within it, one Sub-unit.
-/// `questionCount`/`duration` follow the presets above until the backend
-/// defines the real values. The server response to "start exam" is what
-/// actually determines the questions and the authoritative duration — see
-/// [ExamAttempt] — this config is only the client's *request*.
-///
-/// The scope names travel with the config for result/analytics labels
-/// only; they are never shown while the exam is in progress (exam mode
-/// has no topic/content display).
+/// What the student configured on Exam Setup: a Program + Part, optionally
+/// narrowed to a Unit and Sub-unit, and the question count (which sets the
+/// time limit). There is no question-order option: the server always
+/// shuffles.
 class ExamConfig {
   const ExamConfig({
     required this.programId,
@@ -58,7 +39,8 @@ class ExamConfig {
     this.unitName,
     this.subUnitId,
     this.subUnitName,
-    this.questionOrder = ExamQuestionOrder.original,
+    required this.topicIds,
+    this.topicNames = const {},
   });
 
   final String programId;
@@ -76,5 +58,13 @@ class ExamConfig {
   final String? subUnitId;
   final String? subUnitName;
 
-  final ExamQuestionOrder questionOrder;
+  /// The topics under the selected node, resolved from the curriculum tree
+  /// — what the API is actually sent (contract §A4).
+  final List<String> topicIds;
+
+  /// Names for [topicIds], for sample data only — the API sends its own.
+  final Map<String, String> topicNames;
+
+  /// `clamp(ceil(seconds / 60), 5, 300)` — the API takes whole minutes.
+  int get durationMinutes => (duration.inSeconds / 60).ceil().clamp(5, 300);
 }

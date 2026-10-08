@@ -40,12 +40,23 @@ void main() {
       expect(examDurationFor(30), const Duration(minutes: 45));
     });
 
-    test('question order travels as a stable wire value', () {
-      expect(ExamQuestionOrder.original.toWire(), 'original');
-      expect(ExamQuestionOrder.random.toWire(), 'random');
+    test('the API gets whole minutes, clamped to 5–300', () {
+      ExamConfig withDuration(Duration d) => ExamConfig(
+        programId: 'p',
+        programName: 'CMA',
+        partId: 'part',
+        partName: 'Part 1',
+        questionCount: 1,
+        duration: d,
+        topicIds: const ['t'],
+      );
+      expect(withDuration(const Duration(seconds: 90)).durationMinutes, 5);
+      expect(withDuration(const Duration(minutes: 45)).durationMinutes, 45);
+      expect(withDuration(const Duration(seconds: 2701)).durationMinutes, 46);
+      expect(withDuration(const Duration(hours: 6)).durationMinutes, 300);
     });
 
-    test('scope narrowing defaults to the whole Part, in original order', () {
+    test('scope narrowing defaults to the whole Part', () {
       const config = ExamConfig(
         programId: 'p',
         programName: 'CMA',
@@ -53,10 +64,10 @@ void main() {
         partName: 'Part 1',
         questionCount: 10,
         duration: Duration(minutes: 15),
+        topicIds: ['t'],
       );
       expect(config.unitId, isNull);
       expect(config.subUnitId, isNull);
-      expect(config.questionOrder, ExamQuestionOrder.original);
     });
   });
 

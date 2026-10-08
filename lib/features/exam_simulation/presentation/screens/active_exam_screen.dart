@@ -137,120 +137,182 @@ class ActiveExamScreen extends ConsumerWidget {
         state is ExamTimedOut || state is ExamSubmitting || state is ExamError;
     final isInteractive = state is ExamActive;
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        if (!isInteractive) return; // can't back out of a finishing exam
-        if (await _confirmLeave(context)) {
-          notifier.reset();
-          if (context.mounted) context.pop();
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(l10n.examActiveTitle),
-          automaticallyImplyLeading: isInteractive,
-          actions: [
-            IconButton(
-              tooltip: isFlagged ? l10n.examUnflagButton : l10n.examFlagButton,
-              icon: Icon(isFlagged ? Icons.flag : Icons.outlined_flag),
-              // DESIGN.md "Flagged State": terracotta attention.
-              color: isFlagged ? MadeenTokens.of(context).attention : null,
-              onPressed: isInteractive ? notifier.toggleFlag : null,
-            ),
-            IconButton(
-              tooltip: l10n.examNavigatorButton,
-              icon: const Icon(Icons.grid_view_outlined),
-              onPressed: isInteractive
-                  ? () => _openNavigator(context, notifier)
-                  : null,
-            ),
-          ],
-        ),
-        body: SafeArea(
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      MadeenSpace.pageMargin,
-                      MadeenSpace.sm,
-                      MadeenSpace.pageMargin,
-                      0,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ExamProgressBar(
-                            current: overlayActive.currentIndex + 1,
-                            total: overlayActive.totalQuestions,
-                          ),
-                        ),
-                        const SizedBox(width: MadeenSpace.md),
-                        ExamCountdownDisplay(
-                          remaining: Duration(
-                            seconds: overlayActive.remainingSeconds,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _AnsweredStatusLine(
-                    active: overlayActive,
-                    onTap: isInteractive
-                        ? () => _openNavigator(context, notifier)
-                        : null,
-                  ),
-                  Expanded(
-                    child: ListView(
+    return _ResyncOnResume(
+      onResume: notifier.resync,
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) async {
+          if (didPop) return;
+          if (!isInteractive) return; // can't back out of a finishing exam
+          if (await _confirmLeave(context)) {
+            notifier.reset();
+            if (context.mounted) context.pop();
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(l10n.examActiveTitle),
+            automaticallyImplyLeading: isInteractive,
+            actions: [
+              IconButton(
+                tooltip: isFlagged
+                    ? l10n.examUnflagButton
+                    : l10n.examFlagButton,
+                icon: Icon(isFlagged ? Icons.flag : Icons.outlined_flag),
+                // DESIGN.md "Flagged State": terracotta attention.
+                color: isFlagged ? MadeenTokens.of(context).attention : null,
+                onPressed: isInteractive
+                    ? () async {
+                        if (!await notifier.toggleFlag() && context.mounted) {
+                          _notify(context, l10n.examActionFailed);
+                        }
+                      }
+                    : null,
+              ),
+              IconButton(
+                tooltip: l10n.examNavigatorButton,
+                icon: const Icon(Icons.grid_view_outlined),
+                onPressed: isInteractive
+                    ? () => _openNavigator(context, notifier)
+                    : null,
+              ),
+            ],
+          ),
+          body: SafeArea(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    Padding(
                       padding: const EdgeInsets.fromLTRB(
                         MadeenSpace.pageMargin,
-                        MadeenSpace.lg,
+                        MadeenSpace.sm,
                         MadeenSpace.pageMargin,
-                        MadeenSpace.lg,
+                        0,
                       ),
-                      children: [
-                        MadeenContentText(
-                          question.text,
-                          style: MadeenType.question.copyWith(
-                            color: MadeenTokens.of(context).ink,
-                          ),
-                        ),
-                        const SizedBox(height: MadeenSpace.lg),
-                        // DESIGN.md: answer clusters keep a fixed 12px gap.
-                        for (final choice in question.choices)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: MadeenSpace.sm,
-                            ),
-                            child: ExamAnswerChoiceTile(
-                              choice: choice,
-                              isSelected: choice.id == selectedChoiceId,
-                              onTap: isInteractive
-                                  ? () => notifier.selectChoice(choice.id)
-                                  : () {},
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: ExamProgressBar(
+                              current: overlayActive.currentIndex + 1,
+                              total: overlayActive.totalQuestions,
                             ),
                           ),
-                      ],
+                          const SizedBox(width: MadeenSpace.md),
+                          ExamCountdownDisplay(
+                            remaining: Duration(
+                              seconds: overlayActive.remainingSeconds,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  _BottomBar(
-                    active: overlayActive,
-                    notifier: notifier,
-                    enabled: isInteractive,
-                  ),
-                ],
-              ),
-              if (isOverlayShown)
-                _TimeoutOverlay(state: state, notifier: notifier),
-            ],
+                    _AnsweredStatusLine(
+                      active: overlayActive,
+                      onTap: isInteractive
+                          ? () => _openNavigator(context, notifier)
+                          : null,
+                    ),
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(
+                          MadeenSpace.pageMargin,
+                          MadeenSpace.lg,
+                          MadeenSpace.pageMargin,
+                          MadeenSpace.lg,
+                        ),
+                        children: [
+                          MadeenContentText(
+                            question.text,
+                            style: MadeenType.question.copyWith(
+                              color: MadeenTokens.of(context).ink,
+                            ),
+                          ),
+                          const SizedBox(height: MadeenSpace.lg),
+                          // DESIGN.md: answer clusters keep a fixed 12px gap.
+                          for (final choice in question.choices)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: MadeenSpace.sm,
+                              ),
+                              child: ExamAnswerChoiceTile(
+                                choice: choice,
+                                isSelected: choice.id == selectedChoiceId,
+                                onTap: isInteractive
+                                    ? () async {
+                                        if (!await notifier.selectChoice(
+                                              choice.id,
+                                            ) &&
+                                            context.mounted &&
+                                            ref.read(examNotifierProvider)
+                                                is ExamActive) {
+                                          _notify(
+                                            context,
+                                            l10n.examAnswerNotSaved,
+                                          );
+                                        }
+                                      }
+                                    : () {},
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    _BottomBar(
+                      active: overlayActive,
+                      notifier: notifier,
+                      enabled: isInteractive,
+                    ),
+                  ],
+                ),
+                if (isOverlayShown)
+                  _TimeoutOverlay(state: state, notifier: notifier),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  static void _notify(BuildContext context, String message) =>
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+}
+
+/// Re-syncs the countdown with the server when the app comes back to the
+/// foreground — timers don't run while the app is suspended, and the
+/// server's clock is the one that counts (contract §A4).
+class _ResyncOnResume extends StatefulWidget {
+  const _ResyncOnResume({required this.onResume, required this.child});
+
+  final VoidCallback onResume;
+  final Widget child;
+
+  @override
+  State<_ResyncOnResume> createState() => _ResyncOnResumeState();
+}
+
+class _ResyncOnResumeState extends State<_ResyncOnResume> {
+  late final AppLifecycleListener _listener = AppLifecycleListener(
+    onResume: () => widget.onResume(),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _listener;
+  }
+
+  @override
+  void dispose() {
+    _listener.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// "5 of 20 answered · 2 flagged" — always visible, and a shortcut into

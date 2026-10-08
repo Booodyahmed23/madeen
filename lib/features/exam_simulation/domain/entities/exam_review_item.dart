@@ -21,7 +21,9 @@ class ExamReviewItem {
   final String questionId;
   final String questionText;
   final List<ExamAnswerChoice> choices;
-  final String correctChoiceId;
+
+  /// `null` only if the server didn't reveal the question.
+  final String? correctChoiceId;
 
   /// `null` when the student left this question unanswered.
   final String? selectedChoiceId;

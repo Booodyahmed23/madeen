@@ -16,11 +16,7 @@ import 'package:mobile/features/auth/domain/entities/auth_session.dart';
 import 'package:mobile/features/auth/domain/entities/auth_user.dart';
 import 'package:mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:mobile/features/exam_simulation/data/repositories/exam_repository_impl.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_answer_choice.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_attempt.dart';
 import 'package:mobile/features/exam_simulation/domain/entities/exam_config.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_question.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_question_type.dart';
 import 'package:mobile/features/exam_simulation/domain/repositories/exam_repository.dart';
 import 'package:mobile/features/exam_simulation/presentation/providers/exam_notifier.dart';
 import 'package:mobile/features/notifications/data/repositories/notifications_repository_impl.dart';
@@ -33,6 +29,7 @@ import 'package:mobile/features/performance/domain/repositories/performance_repo
 import 'package:mocktail/mocktail.dart';
 
 import '../../features/subscription/access_overrides.dart';
+import '../../features/exam_simulation/exam_fixtures.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 
@@ -74,18 +71,14 @@ final _insufficientAnalysis = AiAnalysis(
   overallSummary: 'Complete a Study Session to unlock personalized insights.',
 );
 
-final _attempt = ExamAttempt(
-  attemptId: 'attempt-1',
-  durationSeconds: 1800,
+final _attempt = fakeAttempt(
+  durationMinutes: 30,
   questions: [
-    ExamQuestion(
+    FakeExamQuestion(
       id: 'q1',
       text: 'Which cost behavior adjusts with volume under a flexible budget?',
-      type: ExamQuestionType.multipleChoiceSingle,
-      choices: const [
-        ExamAnswerChoice(id: 'q1-a', text: 'Variable cost', order: 0),
-        ExamAnswerChoice(id: 'q1-b', text: 'Fixed cost', order: 1),
-      ],
+      choices: {'q1-a': 'Variable cost', 'q1-b': 'Fixed cost'},
+      correctChoiceId: 'q1-a',
     ),
   ],
 );
@@ -154,6 +147,7 @@ void main() {
         partName: 'x',
         questionCount: 25,
         duration: Duration(minutes: 30),
+        topicIds: ['topic-1'],
       ),
     );
   });
@@ -240,6 +234,7 @@ void main() {
               partName: 'Part 1',
               questionCount: 1,
               duration: Duration(minutes: 30),
+              topicIds: ['topic-1'],
             ),
           );
       await tester.pumpAndSettle();

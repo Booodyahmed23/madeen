@@ -4,12 +4,12 @@ import '../../../../core/error/app_failure.dart';
 import '../../../../core/error/failure_mapper.dart';
 import '../../../../core/error/result.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/paginated.dart';
 import '../../domain/entities/exam_attempt.dart';
 import '../../domain/entities/exam_config.dart';
-import '../../domain/entities/exam_result.dart';
-import '../../domain/entities/exam_review_item.dart';
 import '../../domain/repositories/exam_repository.dart';
 import '../datasources/exam_data_source.dart';
+import '../models/exam_attempt_model.dart';
 
 class ExamRepositoryImpl implements ExamRepository {
   ExamRepositoryImpl(this._dataSource);
@@ -18,43 +18,64 @@ class ExamRepositoryImpl implements ExamRepository {
 
   @override
   Future<Result<ExamAttempt>> startExam(ExamConfig config) =>
-      _guard(() async => (await _dataSource.startExam(config)).toEntity());
+      _attempt(() => _dataSource.startExam(config));
 
   @override
   Future<Result<ExamAttempt>> getAttempt(String attemptId) =>
-      _guard(() async => (await _dataSource.getAttempt(attemptId)).toEntity());
+      _attempt(() => _dataSource.getAttempt(attemptId));
 
   @override
-  Future<Result<ExamResult>> submitExam({
-    required String attemptId,
-    required Map<String, String?> answers,
-    required Set<String> flaggedQuestionIds,
-    required Duration timeTaken,
+  Future<Result<Paginated<ExamAttemptSummary>>> listAttempts({
+    int page = 1,
+    int limit = 20,
   }) => _guard(
-    () async => (await _dataSource.submitExam(
-      attemptId: attemptId,
-      answers: answers,
-      flaggedQuestionIds: flaggedQuestionIds,
-      timeTaken: timeTaken,
-    )).toEntity(),
+    () async => Paginated.fromJson(
+      await _dataSource.listAttempts(page: page, limit: limit),
+      examAttemptSummaryFromJson,
+    ),
   );
 
   @override
-  Future<Result<List<ExamReviewItem>>> getReview(String attemptId) => _guard(
-    () async =>
-        (await _dataSource.getReview(attemptId))
-            .map((m) => m.toEntity())
-            .toList(),
+  Future<Result<ExamAttempt>> answerQuestion({
+    required String attemptId,
+    required String questionId,
+    required String choiceId,
+    int? timeSpentSeconds,
+  }) => _attempt(
+    () => _dataSource.answerQuestion(
+      attemptId: attemptId,
+      questionId: questionId,
+      choiceId: choiceId,
+      timeSpentSeconds: timeSpentSeconds?.clamp(0, 3600),
+    ),
   );
+
+  @override
+  Future<Result<ExamAttempt>> flagQuestion({
+    required String attemptId,
+    required String questionId,
+    required bool flagged,
+  }) => _attempt(
+    () => _dataSource.flagQuestion(
+      attemptId: attemptId,
+      questionId: questionId,
+      flagged: flagged,
+    ),
+  );
+
+  @override
+  Future<Result<ExamAttempt>> submitExam(String attemptId) =>
+      _attempt(() => _dataSource.submitExam(attemptId));
+
+  Future<Result<ExamAttempt>> _attempt(Future<Json> Function() call) =>
+      _guard(() async => examAttemptFromJson(await call()));
 
   Future<Result<T>> _guard<T>(Future<T> Function() action) async {
     try {
       return Result.success(await action());
     } on ApiException catch (error) {
       return Result.failure(mapApiExceptionToFailure(error));
-    } catch (error) {
-      // Malformed/unexpected response shape, or a mock-data inconsistency
-      // (e.g. unknown attemptId) — never let a raw exception reach the UI.
+    } catch (_) {
       return const Result.failure(UnknownFailure());
     }
   }

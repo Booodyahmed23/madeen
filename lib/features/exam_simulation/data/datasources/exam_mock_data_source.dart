@@ -1,234 +1,281 @@
-import 'dart:math';
-
+import '../../../../core/network/api_exception.dart';
 import '../../domain/entities/exam_config.dart';
-import '../../domain/entities/exam_question_type.dart';
-import '../models/exam_answer_choice_model.dart';
-import '../models/exam_attempt_model.dart';
-import '../models/exam_question_model.dart';
-import '../models/exam_result_model.dart';
-import '../models/exam_review_item_model.dart';
 import 'exam_data_source.dart';
 
-typedef _MockTopic = ({String id, String name});
+class _MockQuestion {
+  _MockQuestion({
+    required this.questionId,
+    required this.order,
+    required this.text,
+    required this.topicId,
+    required this.topicName,
+    required this.choices,
+    required this.correctChoiceId,
+  });
 
-class _MockAttempt {
-  _MockAttempt(
-    this.questions,
-    this.correctChoiceByQuestion,
-    this.topicByQuestion,
-    this.durationSeconds,
-  );
-
-  final List<ExamQuestionModel> questions;
-  final Map<String, String> correctChoiceByQuestion;
-  final Map<String, _MockTopic> topicByQuestion;
-  final int durationSeconds;
-  Map<String, String?> lastAnswers = const {};
-  Set<String> lastFlags = const {};
+  final String questionId;
+  final int order;
+  final String text;
+  final String topicId;
+  final String topicName;
+  final List<({String id, String text})> choices;
+  final String correctChoiceId;
+  bool isFlagged = false;
+  DateTime? answeredAt;
+  int timeSpentSeconds = 0;
+  String? selectedChoiceId;
 }
 
-/// Local sample exam — used only because the real Exam Simulation API does
-/// not exist yet (see EXAM_SIMULATION_API_REQUIREMENTS.md). Generates a
-/// plausible multiple-choice set for any [ExamConfig], deliberately with no
-/// topic/curriculum text anywhere in the generated content — this is a
-/// UI-development aid, **not** production exam content, and not the real
-/// CMA/FMAA exam question count or duration (see kExamQuestionCountOptions
-/// / examDurationFor).
-///
-/// Each question is quietly assigned a topic from the configured scope
-/// (round-robin over [_topicsByScope]) — revealed only by [getReview],
-/// after submission, never on the question itself.
-class ExamMockDataSource implements ExamDataSource {
-  ExamMockDataSource({Random? random}) : _random = random ?? Random();
+class _MockAttempt {
+  _MockAttempt({
+    required this.id,
+    required this.durationMinutes,
+    required this.topicIds,
+    required this.questions,
+    required this.startedAt,
+  });
 
-  static const _artificialDelay = Duration(milliseconds: 400);
+  final String id;
+  final int durationMinutes;
+  final List<String> topicIds;
+  final List<_MockQuestion> questions;
+  final DateTime startedAt;
+  String status = 'IN_PROGRESS';
+  DateTime? submittedAt;
+
+  DateTime get expiresAt => startedAt.add(Duration(minutes: durationMinutes));
+}
+
+/// Local sample exam, used while `EXAM_SIMULATION_API_AVAILABLE` is off. An
+/// in-memory stand-in for the API: it keeps attempts, owns the clock (an
+/// attempt touched after it expires turns `EXPIRED`), reveals every
+/// question once the attempt ends, and returns the same JSON as the real
+/// endpoints. A UI-development aid, **not** production exam content.
+class ExamMockDataSource implements ExamDataSource {
+  ExamMockDataSource({
+    this.delay = const Duration(milliseconds: 400),
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
+
+  final Duration delay;
+  final DateTime Function() _clock;
+
   static const _choiceLetters = ['A', 'B', 'C', 'D'];
 
-  final Random _random;
-
-  /// Topics under each curriculum node, mirroring the ids and names of the
-  /// Curriculum feature's own sample data, so a mock exam's per-topic
-  /// results line up with the same topics in Performance.
-  static const Map<String, List<_MockTopic>> _topicsByScope = {
-    'subunit-budgeting': [
-      (id: 'topic-flexible-budget', name: 'Flexible Budget'),
-      (id: 'topic-master-budget', name: 'Master Budget'),
-      (id: 'topic-variance-analysis', name: 'Variance Analysis'),
-    ],
-    'subunit-cost-concepts': [
-      (id: 'topic-cost-behavior', name: 'Cost Behavior'),
-    ],
-    'unit-financial-planning': [
-      (id: 'topic-flexible-budget', name: 'Flexible Budget'),
-      (id: 'topic-master-budget', name: 'Master Budget'),
-      (id: 'topic-variance-analysis', name: 'Variance Analysis'),
-    ],
-    'unit-cost-management': [
-      (id: 'topic-cost-behavior', name: 'Cost Behavior'),
-    ],
-    'cma-part-1': [
-      (id: 'topic-flexible-budget', name: 'Flexible Budget'),
-      (id: 'topic-master-budget', name: 'Master Budget'),
-      (id: 'topic-variance-analysis', name: 'Variance Analysis'),
-      (id: 'topic-cost-behavior', name: 'Cost Behavior'),
-    ],
-  };
-
-  /// The narrowest configured scope's topics. A scope with no sample
-  /// topics groups its questions under that scope node itself, so the
-  /// per-topic breakdown is never empty for a mock exam.
-  static List<_MockTopic> _topicsFor(ExamConfig config) {
-    final (id, name) = config.subUnitId != null
-        ? (config.subUnitId!, config.subUnitName ?? config.subUnitId!)
-        : config.unitId != null
-        ? (config.unitId!, config.unitName ?? config.unitId!)
-        : (config.partId, '${config.programName} ${config.partName}');
-    return _topicsByScope[id] ?? [(id: id, name: name)];
-  }
-
   final _attempts = <String, _MockAttempt>{};
-  var _attemptCounter = 0;
+  var _counter = 0;
+
+  DateTime get _now => _clock().toUtc();
 
   @override
-  Future<ExamAttemptModel> startExam(ExamConfig config) async {
-    await Future<void>.delayed(_artificialDelay);
-
+  Future<Json> startExam(ExamConfig config) async {
+    await Future<void>.delayed(delay);
+    final topicIds = config.topicIds.isEmpty
+        ? [config.subUnitId ?? config.unitId ?? config.partId]
+        : config.topicIds;
+    final attemptId = 'mock-attempt-${_counter++}';
     final questions = List.generate(config.questionCount, (index) {
-      final questionId = 'mock-exam-q-${config.partId}-$index';
-      final correctIndex = index % _choiceLetters.length;
-      final choices = List.generate(
-        _choiceLetters.length,
-        (choiceIndex) => ExamAnswerChoiceModel(
-          id: '$questionId-choice-$choiceIndex',
-          text:
-              '${_choiceLetters[choiceIndex]}) Sample exam answer ${choiceIndex + 1} for question ${index + 1}',
-          order: choiceIndex,
-        ),
-      );
-      return (
-        model: ExamQuestionModel(
-          id: questionId,
-          text: 'Sample exam question ${index + 1}.',
-          type: ExamQuestionType.multipleChoiceSingle,
-          choices: choices,
-        ),
-        correctChoiceId: choices[correctIndex].id,
+      final questionId = '$attemptId-q$index';
+      final topicId = topicIds[index % topicIds.length];
+      final choices = [
+        for (var c = 0; c < _choiceLetters.length; c++)
+          (
+            id: '$questionId-choice-$c',
+            text: '${_choiceLetters[c]}) Sample option ${c + 1}',
+          ),
+      ];
+      return _MockQuestion(
+        questionId: questionId,
+        order: index,
+        text: 'Sample exam question ${index + 1}.',
+        topicId: topicId,
+        topicName:
+            config.topicNames[topicId] ??
+            config.subUnitName ??
+            config.unitName ??
+            config.partName,
+        choices: choices,
+        correctChoiceId: choices[(index * 3) % choices.length].id,
       );
     });
+    final attempt = _MockAttempt(
+      id: attemptId,
+      durationMinutes: config.durationMinutes,
+      topicIds: topicIds,
+      questions: questions,
+      startedAt: _now,
+    );
+    _attempts[attemptId] = attempt;
+    return _toJson(attempt);
+  }
 
-    if (config.questionOrder == ExamQuestionOrder.random) {
-      questions.shuffle(_random);
-    }
-    final topics = _topicsFor(config);
+  @override
+  Future<Json> getAttempt(String attemptId) async {
+    await Future<void>.delayed(delay);
+    return _toJson(_find(attemptId));
+  }
 
-    final attemptId = 'mock-attempt-${_attemptCounter++}';
-    // The server is authoritative for duration — the mock deliberately
-    // echoes the requested config duration back rather than inventing a
-    // different one, since there is no real business rule to diverge with
-    // yet. A real backend might clamp or override this.
-    final durationSeconds = config.duration.inSeconds;
-    _attempts[attemptId] = _MockAttempt(
-      [for (final q in questions) q.model],
-      {for (final q in questions) q.model.id: q.correctChoiceId},
-      {
-        for (var i = 0; i < questions.length; i++)
-          questions[i].model.id: topics[i % topics.length],
+  @override
+  Future<Json> listAttempts({required int page, required int limit}) async {
+    final all = _attempts.values.toList().reversed.toList();
+    return {
+      'data': [
+        for (final attempt in all.skip((page - 1) * limit).take(limit))
+          _toJson(attempt)..remove('questions'),
+      ],
+      'meta': {
+        'page': page,
+        'limit': limit,
+        'total': all.length,
+        'totalPages': (all.length / limit).ceil(),
       },
-      durationSeconds,
-    );
-
-    return ExamAttemptModel(
-      attemptId: attemptId,
-      questions: [for (final q in questions) q.model],
-      durationSeconds: durationSeconds,
-    );
+    };
   }
 
   @override
-  Future<ExamAttemptModel> getAttempt(String attemptId) async {
-    await Future<void>.delayed(_artificialDelay);
-    final attempt = _attempts[attemptId];
-    if (attempt == null) {
-      throw StateError('Unknown mock exam attempt: $attemptId');
-    }
-    return ExamAttemptModel(
-      attemptId: attemptId,
-      questions: attempt.questions,
-      durationSeconds: attempt.durationSeconds,
-    );
-  }
-
-  @override
-  Future<ExamResultModel> submitExam({
+  Future<Json> answerQuestion({
     required String attemptId,
-    required Map<String, String?> answers,
-    required Set<String> flaggedQuestionIds,
-    required Duration timeTaken,
+    required String questionId,
+    required String choiceId,
+    int? timeSpentSeconds,
   }) async {
-    await Future<void>.delayed(_artificialDelay);
-    final attempt = _attempts[attemptId];
-    if (attempt == null) {
-      throw StateError('Unknown mock exam attempt: $attemptId');
-    }
-    attempt.lastAnswers = answers;
-    attempt.lastFlags = flaggedQuestionIds;
-
-    final total = attempt.questions.length;
-    var correct = 0;
-    var answeredCount = 0;
-    for (final question in attempt.questions) {
-      final selected = answers[question.id];
-      if (selected != null) {
-        answeredCount++;
-        if (selected == attempt.correctChoiceByQuestion[question.id]) correct++;
-      }
-    }
-    final unanswered = total - answeredCount;
-    final incorrect = answeredCount - correct;
-
-    return ExamResultModel(
-      attemptId: attemptId,
-      totalQuestions: total,
-      answered: answeredCount,
-      unanswered: unanswered,
-      correct: correct,
-      incorrect: incorrect,
-      scorePercent: total == 0 ? 0 : (correct / total) * 100,
-      durationTakenSeconds: timeTaken.inSeconds,
-      // Using the whole countdown means the timer ran out (the client
-      // auto-submits at zero) — the mock's stand-in for the server's own
-      // deadline check.
-      completionStatus: timeTaken.inSeconds >= attempt.durationSeconds
-          ? 'timed_out'
-          : 'completed',
-    );
+    await Future<void>.delayed(delay);
+    final attempt = _openAttempt(attemptId);
+    _question(attempt, questionId)
+      ..selectedChoiceId = choiceId
+      ..answeredAt = _now
+      ..timeSpentSeconds += timeSpentSeconds ?? 0;
+    return _toJson(attempt);
   }
 
   @override
-  Future<List<ExamReviewItemModel>> getReview(String attemptId) async {
-    await Future<void>.delayed(_artificialDelay);
-    final attempt = _attempts[attemptId];
-    if (attempt == null) return const [];
+  Future<Json> flagQuestion({
+    required String attemptId,
+    required String questionId,
+    required bool flagged,
+  }) async {
+    await Future<void>.delayed(delay);
+    final attempt = _openAttempt(attemptId);
+    _question(attempt, questionId).isFlagged = flagged;
+    return _toJson(attempt);
+  }
 
-    return [
-      for (final question in attempt.questions)
-        ExamReviewItemModel(
-          questionId: question.id,
-          questionText: question.text,
-          choices: question.choices,
-          correctChoiceId: attempt.correctChoiceByQuestion[question.id]!,
-          selectedChoiceId: attempt.lastAnswers[question.id],
-          isCorrect:
-              attempt.lastAnswers[question.id] != null &&
-              attempt.lastAnswers[question.id] ==
-                  attempt.correctChoiceByQuestion[question.id],
-          wasFlagged: attempt.lastFlags.contains(question.id),
-          explanation:
-              'This is sample explanation text for a mock exam question — '
-              'replace once the real Exam Simulation API is connected.',
-          topicId: attempt.topicByQuestion[question.id]?.id,
-          topicName: attempt.topicByQuestion[question.id]?.name,
-        ),
-    ];
+  @override
+  Future<Json> submitExam(String attemptId) async {
+    await Future<void>.delayed(delay);
+    final attempt = _find(attemptId);
+    if (attempt.status == 'IN_PROGRESS') {
+      attempt
+        ..status = 'SUBMITTED'
+        ..submittedAt = _now;
+    }
+    return _toJson(attempt);
+  }
+
+  /// Applies the server-side clock: past `expiresAt`, an in-progress
+  /// attempt becomes `EXPIRED`.
+  _MockAttempt _find(String attemptId) {
+    final attempt = _attempts[attemptId];
+    if (attempt == null) {
+      throw const ApiException(statusCode: 404, message: 'Attempt not found');
+    }
+    if (attempt.status == 'IN_PROGRESS' && !_now.isBefore(attempt.expiresAt)) {
+      attempt
+        ..status = 'EXPIRED'
+        ..submittedAt = attempt.expiresAt;
+    }
+    return attempt;
+  }
+
+  _MockAttempt _openAttempt(String attemptId) {
+    final attempt = _find(attemptId);
+    if (attempt.status != 'IN_PROGRESS') {
+      throw const ApiException(
+        statusCode: 400,
+        message: 'Attempt is not in progress',
+      );
+    }
+    return attempt;
+  }
+
+  _MockQuestion _question(_MockAttempt attempt, String questionId) {
+    for (final question in attempt.questions) {
+      if (question.questionId == questionId) return question;
+    }
+    throw const ApiException(statusCode: 404, message: 'Question not found');
+  }
+
+  Json _toJson(_MockAttempt attempt) {
+    final ended = attempt.status != 'IN_PROGRESS';
+    final answered = attempt.questions.where((q) => q.answeredAt != null);
+    final correct = answered
+        .where((q) => q.selectedChoiceId == q.correctChoiceId)
+        .length;
+    final remaining = attempt.expiresAt.difference(_now).inSeconds;
+    return {
+      'id': attempt.id,
+      'userId': 'mock-user',
+      'status': attempt.status,
+      'durationMinutes': attempt.durationMinutes,
+      'topicIds': attempt.topicIds,
+      'difficulty': null,
+      'requestedCount': attempt.questions.length,
+      'startedAt': attempt.startedAt.toIso8601String(),
+      'expiresAt': attempt.expiresAt.toIso8601String(),
+      'submittedAt': attempt.submittedAt?.toIso8601String(),
+      'createdAt': attempt.startedAt.toIso8601String(),
+      'updatedAt': attempt.startedAt.toIso8601String(),
+      'remainingSeconds': ended ? 0 : remaining.clamp(0, 1 << 31),
+      'progress': {
+        'total': attempt.questions.length,
+        'answered': answered.length,
+        'flagged': attempt.questions.where((q) => q.isFlagged).length,
+      },
+      'score': ended
+          ? {
+              'correct': correct,
+              'incorrect': answered.length - correct,
+              'unanswered': attempt.questions.length - answered.length,
+            }
+          : null,
+      'questions': [
+        for (final q in attempt.questions)
+          {
+            'id': '${attempt.id}-${q.order}',
+            'questionId': q.questionId,
+            'order': q.order,
+            'isFlagged': q.isFlagged,
+            'answeredAt': q.answeredAt?.toIso8601String(),
+            'timeSpentSeconds': q.timeSpentSeconds,
+            'selectedChoiceId': q.selectedChoiceId,
+            'isCorrect': ended && q.answeredAt != null
+                ? q.selectedChoiceId == q.correctChoiceId
+                : null,
+            'question': {
+              'id': q.questionId,
+              'text': q.text,
+              'topic': {
+                'id': q.topicId,
+                'name': q.topicName,
+                'description': null,
+              },
+              'code': q.order + 1,
+              'losCode': null,
+              'difficulty': 'MEDIUM',
+              'explanation': ended
+                  ? 'Sample explanation for question ${q.order + 1}.'
+                  : null,
+            },
+            'choices': [
+              for (final choice in q.choices)
+                {
+                  'id': choice.id,
+                  'text': choice.text,
+                  if (ended) 'isCorrect': choice.id == q.correctChoiceId,
+                },
+            ],
+          },
+      ],
+    };
   }
 }

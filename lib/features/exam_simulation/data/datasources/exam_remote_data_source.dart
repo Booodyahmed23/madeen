@@ -1,76 +1,66 @@
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/paginated.dart';
 import '../../domain/entities/exam_config.dart';
-import '../models/exam_attempt_model.dart';
-import '../models/exam_result_model.dart';
-import '../models/exam_review_item_model.dart';
 import 'exam_data_source.dart';
 
-/// Talks to the Exam Simulation endpoints proposed in
-/// EXAM_SIMULATION_API_REQUIREMENTS.md (mobile/ root).
-///
-/// ⚠️ NOT YET INTEGRATION-TESTED AGAINST A REAL BACKEND — as of Phase 5,
-/// backend/ has no Exam Simulation module (verified by inspection). This
-/// class exists so the mobile app's abstraction is ready the day those
-/// endpoints ship; until then it is wired up but not selected by default —
-/// see AppConfig.isExamSimulationApiAvailable.
+/// `/exams/attempts/*` (contract §A4). Sends only the documented fields —
+/// the API rejects unknown ones with `400` (§G4).
 class ExamRemoteDataSource implements ExamDataSource {
   ExamRemoteDataSource(this._apiClient);
 
   final ApiClient _apiClient;
 
-  @override
-  Future<ExamAttemptModel> startExam(ExamConfig config) {
-    return _apiClient.post(
-      '/exam-attempts',
-      data: {
-        'programId': config.programId,
-        'partId': config.partId,
-        'unitId': config.unitId,
-        'subUnitId': config.subUnitId,
-        'questionCount': config.questionCount,
-        'questionOrder': config.questionOrder.toWire(),
-        'durationSeconds': config.duration.inSeconds,
-      },
-      parse: (data) => ExamAttemptModel.fromJson(data as Map<String, dynamic>),
-    );
-  }
+  static const _base = '/exams/attempts';
+
+  static Json _json(dynamic data) => data as Json;
 
   @override
-  Future<ExamAttemptModel> getAttempt(String attemptId) {
-    return _apiClient.get(
-      '/exam-attempts/$attemptId',
-      parse: (data) => ExamAttemptModel.fromJson(data as Map<String, dynamic>),
-    );
-  }
+  Future<Json> startExam(ExamConfig config) => _apiClient.post(
+    _base,
+    data: {
+      'topicIds': config.topicIds,
+      'questionCount': config.questionCount,
+      'durationMinutes': config.durationMinutes,
+    },
+    parse: _json,
+  );
 
   @override
-  Future<ExamResultModel> submitExam({
+  Future<Json> getAttempt(String attemptId) =>
+      _apiClient.get('$_base/$attemptId', parse: _json);
+
+  @override
+  Future<Json> listAttempts({required int page, required int limit}) =>
+      _apiClient.get(
+        _base,
+        queryParameters: pageQuery(page: page, limit: limit),
+        parse: _json,
+      );
+
+  @override
+  Future<Json> answerQuestion({
     required String attemptId,
-    required Map<String, String?> answers,
-    required Set<String> flaggedQuestionIds,
-    required Duration timeTaken,
-  }) {
-    return _apiClient.post(
-      '/exam-attempts/$attemptId/submit',
-      data: {
-        'answers': answers,
-        'flaggedQuestionIds': flaggedQuestionIds.toList(),
-        'timeTakenSeconds': timeTaken.inSeconds,
-      },
-      parse: (data) => ExamResultModel.fromJson(data as Map<String, dynamic>),
-    );
-  }
+    required String questionId,
+    required String choiceId,
+    int? timeSpentSeconds,
+  }) => _apiClient.patch(
+    '$_base/$attemptId/questions/$questionId/answer',
+    data: {'choiceId': choiceId, 'timeSpentSeconds': ?timeSpentSeconds},
+    parse: _json,
+  );
 
   @override
-  Future<List<ExamReviewItemModel>> getReview(String attemptId) {
-    return _apiClient.get(
-      '/exam-attempts/$attemptId/review',
-      parse: (data) => (data as List)
-          .map(
-            (json) =>
-                ExamReviewItemModel.fromJson(json as Map<String, dynamic>),
-          )
-          .toList(),
-    );
-  }
+  Future<Json> flagQuestion({
+    required String attemptId,
+    required String questionId,
+    required bool flagged,
+  }) => _apiClient.patch(
+    '$_base/$attemptId/questions/$questionId/flag',
+    data: {'flagged': flagged},
+    parse: _json,
+  );
+
+  @override
+  Future<Json> submitExam(String attemptId) =>
+      _apiClient.post('$_base/$attemptId/submit', parse: _json);
 }

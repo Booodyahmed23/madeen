@@ -55,7 +55,10 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
   /// been preselected — done once, so it never overrides the user's pick.
   bool _defaultProgramApplied = false;
   int _questionCount = kExamQuestionCountOptions.first;
-  ExamQuestionOrder _order = ExamQuestionOrder.original;
+
+  /// Set when the selected scope has no topics with questions — nothing to
+  /// start, so the API isn't called.
+  bool _scopeHasNoQuestions = false;
 
   void _applyDefaultProgram(List<Program> programs) {
     if (_defaultProgramApplied || _selectedProgram != null) return;
@@ -71,6 +74,16 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
     final program = _selectedProgram;
     final part = _selectedPart;
     if (program == null || part == null) return;
+    final tree = ref.read(programTreeProvider(program.id)).value;
+    if (tree == null) return;
+    final topicIds = tree.topicIdsUnder(
+      _selectedSubUnit?.id ?? _selectedUnit?.id ?? part.id,
+    );
+    if (topicIds.isEmpty) {
+      setState(() => _scopeHasNoQuestions = true);
+      return;
+    }
+    setState(() => _scopeHasNoQuestions = false);
 
     ref
         .read(examNotifierProvider.notifier)
@@ -86,7 +99,10 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
             subUnitName: _selectedSubUnit?.name,
             questionCount: _questionCount,
             duration: examDurationFor(_questionCount),
-            questionOrder: _order,
+            topicIds: topicIds,
+            topicNames: {
+              for (final id in topicIds) id: tree.topicById(id)?.name ?? id,
+            },
           ),
         );
   }
@@ -196,6 +212,7 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
                               _selectedPart = part;
                               _selectedUnit = null;
                               _selectedSubUnit = null;
+                              _scopeHasNoQuestions = false;
                             }),
                           ),
                         );
@@ -226,24 +243,6 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
                   ),
                   const SizedBox(height: MadeenSpace.xl),
 
-                  MadeenSectionHeader(title: l10n.examSetupOrderLabel),
-                  const SizedBox(height: MadeenSpace.sm),
-                  MadeenChoicePills<ExamQuestionOrder>(
-                    choices: [
-                      MadeenChoice(
-                        value: ExamQuestionOrder.original,
-                        label: l10n.examSetupOrderOriginal,
-                      ),
-                      MadeenChoice(
-                        value: ExamQuestionOrder.random,
-                        label: l10n.examSetupOrderRandom,
-                      ),
-                    ],
-                    selected: _order,
-                    onSelected: (order) => setState(() => _order = order),
-                  ),
-                  const SizedBox(height: MadeenSpace.xl),
-
                   _ExamRulesNote(
                     title: l10n.examSetupRulesTitle,
                     body: l10n.examSetupRulesBody,
@@ -252,6 +251,15 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
                   if (noAccess) ...[
                     const SizedBox(height: MadeenSpace.md),
                     const NoAccessNotice(),
+                  ] else if (_scopeHasNoQuestions ||
+                      (failure != null && _isNoQuestions(failure))) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      l10n.examSetupNoQuestions,
+                      style: MadeenType.bodySm.copyWith(
+                        color: MadeenTokens.of(context).error,
+                      ),
+                    ),
                   ] else if (failure != null) ...[
                     const SizedBox(height: 16),
                     Text(
@@ -331,6 +339,7 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
           onChanged: (value) => setState(() {
             _selectedUnit = value;
             _selectedSubUnit = null;
+            _scopeHasNoQuestions = false;
           }),
         ),
         const SizedBox(height: MadeenSpace.xl),
@@ -347,7 +356,10 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
             for (final s in subUnits)
               DropdownMenuItem(value: s, child: Text(s.name)),
           ],
-          onChanged: (value) => setState(() => _selectedSubUnit = value),
+          onChanged: (value) => setState(() {
+            _selectedSubUnit = value;
+            _scopeHasNoQuestions = false;
+          }),
         ),
         const SizedBox(height: MadeenSpace.xl),
       ],
@@ -424,3 +436,8 @@ class _ExamRulesNote extends StatelessWidget {
     );
   }
 }
+
+/// The API's `400` when no published question matches (contract §A4).
+bool _isNoQuestions(AppFailure failure) =>
+    failure is ValidationFailure &&
+    failure.message.startsWith('No published questions');

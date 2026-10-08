@@ -7,36 +7,24 @@ import 'package:mobile/core/error/result.dart';
 import 'package:mobile/features/curriculum/domain/entities/part.dart';
 import 'package:mobile/features/curriculum/domain/entities/program.dart';
 import 'package:mobile/features/curriculum/domain/entities/sub_unit.dart';
+import 'package:mobile/features/curriculum/domain/entities/topic.dart';
 import 'package:mobile/features/curriculum/domain/entities/unit.dart';
 import 'package:mobile/features/curriculum/domain/repositories/curriculum_repository.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_answer_choice.dart';
 import 'package:mobile/features/exam_simulation/domain/entities/exam_attempt.dart';
 import 'package:mobile/features/exam_simulation/domain/entities/exam_config.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_question.dart';
-import 'package:mobile/features/exam_simulation/domain/entities/exam_question_type.dart';
 import 'package:mobile/features/exam_simulation/domain/repositories/exam_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../exam_simulation_test_harness.dart';
 import '../../../curriculum/curriculum_test_tree.dart';
+import '../../exam_fixtures.dart';
 
 class MockExamRepository extends Mock implements ExamRepository {}
 
 class MockCurriculumRepository extends Mock implements CurriculumRepository {}
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(
-      const ExamConfig(
-        programId: 'x',
-        programName: 'x',
-        partId: 'x',
-        partName: 'x',
-        questionCount: 25,
-        duration: Duration(minutes: 30),
-      ),
-    );
-  });
+  setUpAll(() => registerFallbackValue(testExamConfig));
 
   late MockCurriculumRepository curriculumRepository;
 
@@ -46,16 +34,8 @@ void main() {
       (_) async =>
           const Result.success([Program(id: 'program-cma', name: 'CMA')]),
     );
-    when(() => curriculumRepository.getProgramTree('program-cma')).thenAnswer(
-      (_) async => Result.success(
-        testCurriculumTree(
-          program: const Program(id: 'program-cma', name: 'CMA'),
-          parts: const [
-            Part(id: 'cma-part-1', programId: 'program-cma', name: 'Part 1'),
-          ],
-        ),
-      ),
-    );
+    when(() => curriculumRepository.getProgramTree('program-cma'))
+        .thenAnswer((_) async => Result.success(examCurriculumTree()));
   });
 
   testWidgets('preselects the program the student has access to', (
@@ -188,8 +168,6 @@ void main() {
 
       await tester.tap(find.widgetWithText(ChoiceChip, '50'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Random'));
-      await tester.pumpAndSettle();
 
       await tester.tap(find.widgetWithText(FilledButton, 'Start exam'));
       await tester.pump();
@@ -203,30 +181,16 @@ void main() {
       expect(config.partId, 'cma-part-1');
       expect(config.questionCount, 50);
       expect(config.duration, const Duration(hours: 1));
-      expect(config.questionOrder, ExamQuestionOrder.random);
-      // No unit picked: the whole Part.
+      expect(config.durationMinutes, 60);
+      // No unit picked: the whole Part — every topic under it is sent.
+      expect(config.topicIds, ['topic-1', 'topic-2']);
       expect(config.unitId, isNull);
       expect(config.subUnitId, isNull);
 
-      completer.complete(
-        const Result.success(
-          ExamAttempt(
-            attemptId: 'attempt-1',
-            durationSeconds: 3600,
-            questions: [
-              ExamQuestion(
-                id: 'q1',
-                text: 'Sample exam question',
-                type: ExamQuestionType.multipleChoiceSingle,
-                choices: [ExamAnswerChoice(id: 'q1-a', text: 'A')],
-              ),
-            ],
-          ),
-        ),
-      );
+      completer.complete(Result.success(fakeAttempt()));
       await tester.pumpAndSettle();
 
-      expect(find.text('Sample exam question'), findsOneWidget);
+      expect(find.text('What is a flexible budget?'), findsOneWidget);
     },
   );
 
@@ -292,30 +256,6 @@ void main() {
     'configuration',
     (tester) async {
       useTallSurface(tester);
-      when(() => curriculumRepository.getProgramTree('program-cma')).thenAnswer(
-        (_) async => Result.success(
-          testCurriculumTree(
-            program: const Program(id: 'program-cma', name: 'CMA'),
-            parts: const [
-              Part(id: 'cma-part-1', programId: 'program-cma', name: 'Part 1'),
-            ],
-            units: const [
-              Unit(
-                id: 'unit-financial-planning',
-                partId: 'cma-part-1',
-                name: 'Financial Planning',
-              ),
-            ],
-            subUnits: const [
-              SubUnit(
-                id: 'subunit-budgeting',
-                unitId: 'unit-financial-planning',
-                name: 'Budgeting',
-              ),
-            ],
-          ),
-        ),
-      );
       final examRepository = MockExamRepository();
       when(() => examRepository.startExam(any()))
           .thenAnswer((_) async => const Result.failure(NetworkFailure()));
@@ -365,7 +305,57 @@ void main() {
       expect(config.unitName, 'Financial Planning');
       expect(config.subUnitId, 'subunit-budgeting');
       expect(config.subUnitName, 'Budgeting');
-      expect(config.questionOrder, ExamQuestionOrder.original);
+      expect(config.topicIds, ['topic-1', 'topic-2']);
     },
   );
+
+  testWidgets('a scope without questions says so instead of starting', (
+    tester,
+  ) async {
+    useTallSurface(tester);
+    when(() => curriculumRepository.getProgramTree('program-cma')).thenAnswer(
+      (_) async => Result.success(
+        testCurriculumTree(
+          program: const Program(id: 'program-cma', name: 'CMA'),
+          parts: const [
+            Part(id: 'cma-part-1', programId: 'program-cma', name: 'Part 1'),
+          ],
+          units: const [Unit(id: 'u1', partId: 'cma-part-1', name: 'Unit')],
+          subUnits: const [SubUnit(id: 's1', unitId: 'u1', name: 'Sub')],
+          topics: const [
+            Topic(
+              id: 'empty',
+              subUnitId: 's1',
+              name: 'Empty',
+              publishedQuestionCount: 0,
+            ),
+          ],
+        ),
+      ),
+    );
+    final examRepository = MockExamRepository();
+
+    await tester.pumpWidget(
+      wrapExamScreen(
+        examRepository: examRepository,
+        curriculumRepository: curriculumRepository,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButtonFormField<Part>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Part 1').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Start exam'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'No questions are available for this selection yet. Try a wider '
+        'scope.',
+      ),
+      findsOneWidget,
+    );
+    verifyNever(() => examRepository.startExam(any()));
+  });
 }

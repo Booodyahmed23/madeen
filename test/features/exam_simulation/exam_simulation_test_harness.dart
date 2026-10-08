@@ -9,6 +9,7 @@ import 'package:mobile/features/curriculum/data/repositories/curriculum_reposito
 import 'package:mobile/features/curriculum/domain/repositories/curriculum_repository.dart';
 import 'package:mobile/features/exam_simulation/data/repositories/exam_repository_impl.dart';
 import 'package:mobile/features/exam_simulation/domain/repositories/exam_repository.dart';
+import 'package:mobile/features/exam_simulation/presentation/providers/exam_notifier.dart';
 import 'package:mobile/features/exam_simulation/presentation/screens/active_exam_screen.dart';
 import 'package:mobile/features/exam_simulation/presentation/screens/exam_post_review_screen.dart';
 import 'package:mobile/features/exam_simulation/presentation/screens/exam_results_screen.dart';
@@ -84,6 +85,11 @@ Widget wrapExamScreen({
   return ProviderScope(
     overrides: [
       ...accessOverrides(),
+      // The countdown follows the test's fake clock, so pumping time ends
+      // the exam like real time would.
+      examClockProvider.overrideWithValue(
+        () => TestWidgetsFlutterBinding.instance.clock.now(),
+      ),
       examRepositoryProvider.overrideWithValue(examRepository),
       curriculumRepositoryProvider.overrideWithValue(curriculumRepository),
     ],

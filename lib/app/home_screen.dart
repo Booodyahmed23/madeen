@@ -15,6 +15,7 @@ import '../features/notifications/presentation/providers/notifications_providers
 import '../l10n/generated/app_localizations.dart';
 import '../shared/widgets/madeen/madeen.dart';
 import 'widgets/ai_analysis_teaser_card.dart';
+import 'widgets/continue_exam_card.dart';
 import 'widgets/continue_study_card.dart';
 import 'widgets/performance_snapshot_card.dart';
 import 'widgets/recent_activity_section.dart';
@@ -100,6 +101,7 @@ class _HomeView extends ConsumerWidget {
           children: [
             _GreetingHero(user: user),
             const SizedBox(height: MadeenSpace.lg),
+            const ContinueExamCard(),
             const ContinueStudyCard(),
             const PerformanceSnapshotCard(),
             const SizedBox(height: MadeenSpace.md),
