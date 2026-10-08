@@ -33,8 +33,8 @@ class AppConfig {
     TargetPlatform? platform,
   }) {
     final uri = Uri.parse(configured);
-    final isAndroid = (platform ?? defaultTargetPlatform) ==
-        TargetPlatform.android;
+    final isAndroid =
+        (platform ?? defaultTargetPlatform) == TargetPlatform.android;
     if (!isAndroid || uri.host != 'localhost') return configured;
     return uri.replace(host: '10.0.2.2').toString();
   }

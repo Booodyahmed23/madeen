@@ -24,16 +24,13 @@ import 'package:mobile/features/performance/data/local_attempts_provider.dart';
 import 'package:mobile/features/performance/domain/entities/attempt_type.dart';
 import 'package:mobile/features/performance/domain/entities/performance_filter.dart';
 import 'package:mobile/features/study_session/data/repositories/study_session_repository_impl.dart';
-import 'package:mobile/features/study_session/domain/entities/answer_choice.dart';
-import 'package:mobile/features/study_session/domain/entities/question.dart';
-import 'package:mobile/features/study_session/domain/entities/question_type.dart';
-import 'package:mobile/features/study_session/domain/entities/study_session_bundle.dart';
 import 'package:mobile/features/study_session/domain/repositories/study_session_repository.dart';
 import 'package:mobile/features/study_session/presentation/providers/study_session_notifier.dart';
 import 'package:mobile/features/study_session/presentation/providers/study_session_state.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../features/performance/local_attempt_test_data.dart';
+import '../features/study_session/study_session_fixtures.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 
@@ -51,13 +48,6 @@ const _session = AuthSession(
     role: 'USER',
   ),
   accessToken: 'token',
-);
-
-const _question = Question(
-  id: 'q1',
-  text: 'Q1',
-  type: QuestionType.multipleChoiceSingle,
-  choices: [AnswerChoice(id: 'c1', text: 'A')],
 );
 
 const _examQuestion = ExamQuestion(
@@ -86,20 +76,11 @@ void main() {
     when(() => auth.restoreSession()).thenAnswer((_) async => _session);
 
     study = MockStudySessionRepository();
-    when(() => study.startSession(any())).thenAnswer(
-      (_) async => const Result.success(
-        StudySessionBundle(sessionId: 'mock-session-0', questions: [_question]),
-      ),
+    when(() => study.startSession(any()))
+        .thenAnswer((_) async => Result.success(varianceSession()));
+    when(() => study.completeSession(any())).thenAnswer(
+      (_) async => Result.success(varianceSession(status: 'COMPLETED')),
     );
-    when(
-      () => study.submitSession(
-        sessionId: any(named: 'sessionId'),
-        answers: any(named: 'answers'),
-        totalTime: any(named: 'totalTime'),
-      ),
-    ).thenAnswer((_) async => const Result.success(varianceResult));
-    when(() => study.getReview(any()))
-        .thenAnswer((_) async => const Result.success([]));
 
     exam = MockExamRepository();
     when(() => exam.startExam(any())).thenAnswer(
@@ -238,13 +219,8 @@ void main() {
 
   test('a failed submission records nothing', () async {
     await setUpContainer();
-    when(
-      () => study.submitSession(
-        sessionId: any(named: 'sessionId'),
-        answers: any(named: 'answers'),
-        totalTime: any(named: 'totalTime'),
-      ),
-    ).thenAnswer((_) async => const Result.failure(NetworkFailure()));
+    when(() => study.completeSession(any()))
+        .thenAnswer((_) async => const Result.failure(NetworkFailure()));
 
     await completeStudySession();
 

@@ -1,9 +1,5 @@
-/// The authoritative outcome of a completed session — always sourced from
-/// the repository (backend, once it exists), never computed client-side.
-/// The app does keep a local provisional answered/unanswered tally *during*
-/// the session for progress UI, but once this arrives it's what the
-/// Results screen shows (ARCHITECTURE.md: "do not calculate metrics
-/// differently from the backend if authoritative results are provided").
+/// The outcome of a completed session, derived from the server's session
+/// (see StudySession.toResult — contract §A3's result table).
 class SessionResult {
   const SessionResult({
     required this.sessionId,

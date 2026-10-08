@@ -22,16 +22,12 @@ import 'package:mobile/features/exam_simulation/domain/entities/exam_question.da
 import 'package:mobile/features/exam_simulation/domain/entities/exam_question_type.dart';
 import 'package:mobile/features/exam_simulation/domain/repositories/exam_repository.dart';
 import 'package:mobile/features/study_session/data/repositories/study_session_repository_impl.dart';
-import 'package:mobile/features/study_session/domain/entities/answer_choice.dart';
-import 'package:mobile/features/study_session/domain/entities/question.dart';
-import 'package:mobile/features/study_session/domain/entities/question_feedback.dart';
-import 'package:mobile/features/study_session/domain/entities/question_type.dart';
-import 'package:mobile/features/study_session/domain/entities/study_session_bundle.dart';
 import 'package:mobile/features/study_session/domain/repositories/study_session_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../features/performance/local_attempt_test_data.dart';
 import '../features/subscription/access_overrides.dart';
+import '../features/study_session/study_session_fixtures.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 
@@ -74,45 +70,21 @@ void main() {
     );
 
     study = MockStudySessionRepository();
-    when(() => study.startSession(any())).thenAnswer(
-      (_) async => const Result.success(
-        StudySessionBundle(
-          sessionId: 'mock-session-0',
-          questions: [
-            Question(
-              id: 'q1',
-              text: 'What is a variance?',
-              type: QuestionType.multipleChoiceSingle,
-              choices: [AnswerChoice(id: 'c1', text: 'A difference')],
-            ),
-          ],
-        ),
-      ),
-    );
+    when(() => study.startSession(any()))
+        .thenAnswer((_) async => Result.success(varianceSession()));
     when(
-      () => study.submitAnswer(
+      () => study.answerQuestion(
         sessionId: any(named: 'sessionId'),
         questionId: any(named: 'questionId'),
-        selectedChoiceId: any(named: 'selectedChoiceId'),
+        choiceId: any(named: 'choiceId'),
+        timeSpentSeconds: any(named: 'timeSpentSeconds'),
       ),
     ).thenAnswer(
-      (_) async => const Result.success(
-        QuestionFeedback(
-          questionId: 'q1',
-          isCorrect: true,
-          correctChoiceId: 'c1',
-        ),
-      ),
+      (_) async => Result.success(varianceSession(answeredCount: 1)),
     );
-    when(
-      () => study.submitSession(
-        sessionId: any(named: 'sessionId'),
-        answers: any(named: 'answers'),
-        totalTime: any(named: 'totalTime'),
-      ),
-    ).thenAnswer((_) async => const Result.success(varianceResult));
-    when(() => study.getReview(any()))
-        .thenAnswer((_) async => const Result.success([]));
+    when(() => study.completeSession(any())).thenAnswer(
+      (_) async => Result.success(varianceSession(status: 'COMPLETED')),
+    );
 
     exam = MockExamRepository();
     when(() => exam.startExam(any())).thenAnswer(

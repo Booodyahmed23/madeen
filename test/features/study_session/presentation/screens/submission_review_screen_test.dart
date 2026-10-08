@@ -2,37 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/error/app_failure.dart';
 import 'package:mobile/core/error/result.dart';
-import 'package:mobile/features/study_session/domain/entities/answer_choice.dart';
-import 'package:mobile/features/study_session/domain/entities/question.dart';
-import 'package:mobile/features/study_session/domain/entities/question_feedback.dart';
-import 'package:mobile/features/study_session/domain/entities/question_type.dart';
-import 'package:mobile/features/study_session/domain/entities/session_config.dart';
-import 'package:mobile/features/study_session/domain/entities/session_result.dart';
-import 'package:mobile/features/study_session/domain/entities/study_session_bundle.dart';
 import 'package:mobile/features/study_session/domain/repositories/study_session_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../study_session_fixtures.dart';
 import '../../study_session_test_harness.dart';
 
 class MockStudySessionRepository extends Mock
     implements StudySessionRepository {}
 
-final _bundle = StudySessionBundle(
-  sessionId: 'sess-1',
-  questions: [
-    Question(
-      id: 'q1',
-      text: 'Question 1',
-      type: QuestionType.multipleChoiceSingle,
-      choices: const [AnswerChoice(id: 'q1-a', text: 'A', order: 0)],
-    ),
-    Question(
-      id: 'q2',
-      text: 'Question 2',
-      type: QuestionType.multipleChoiceSingle,
-      choices: const [AnswerChoice(id: 'q2-a', text: 'A', order: 0)],
-    ),
-  ],
+const _qa = FakeQuestion(
+  id: 'q1',
+  text: 'Question 1',
+  choices: {'q1-a': 'A', 'q1-b': 'B'},
+  correctChoiceId: 'q1-a',
+);
+const _qb = FakeQuestion(
+  id: 'q2',
+  text: 'Question 2',
+  choices: {'q2-a': 'A', 'q2-b': 'B'},
+  correctChoiceId: 'q2-a',
 );
 
 Future<void> _startSessionLeavingQ2Unanswered(
@@ -40,8 +29,20 @@ Future<void> _startSessionLeavingQ2Unanswered(
   MockStudySessionRepository repository,
 ) async {
   useTallSurface(tester);
-  when(() => repository.startSession(any()))
-      .thenAnswer((_) async => Result.success(_bundle));
+  when(() => repository.startSession(any())).thenAnswer(
+    (_) async => Result.success(fakeSession(questions: const [_qa, _qb])),
+  );
+  when(
+    () => repository.answerQuestion(
+      sessionId: 'sess-1',
+      questionId: 'q1',
+      choiceId: 'q1-a',
+      timeSpentSeconds: any(named: 'timeSpentSeconds'),
+    ),
+  ).thenAnswer(
+    (_) async =>
+        Result.success(fakeSession(questions: [_qa.answer('q1-a'), _qb])),
+  );
 
   await tester.pumpWidget(
     wrapStudySessionScreen(
@@ -62,38 +63,12 @@ Future<void> _startSessionLeavingQ2Unanswered(
 }
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(
-      const SessionConfig(
-        topicId: 'x',
-        topicName: 'x',
-        questionCount: 10,
-        order: QuestionOrder.original,
-        feedbackMode: FeedbackMode.immediate,
-      ),
-    );
-    registerFallbackValue(Duration.zero);
-  });
+  setUpAll(() => registerFallbackValue(testSessionConfig));
 
   testWidgets(
     'shows answered/unanswered counts and lets the student jump to an unanswered question',
     (tester) async {
       final repository = MockStudySessionRepository();
-      when(
-        () => repository.submitAnswer(
-          sessionId: any(named: 'sessionId'),
-          questionId: any(named: 'questionId'),
-          selectedChoiceId: any(named: 'selectedChoiceId'),
-        ),
-      ).thenAnswer(
-        (_) async => const Result.success(
-          QuestionFeedback(
-            questionId: 'q1',
-            isCorrect: true,
-            correctChoiceId: 'q1-a',
-          ),
-        ),
-      );
       await _startSessionLeavingQ2Unanswered(tester, repository);
 
       await tester.tap(find.byTooltip('Review & submit'));
@@ -119,44 +94,11 @@ void main() {
 
   testWidgets('submitting requires explicit confirmation', (tester) async {
     final repository = MockStudySessionRepository();
-    when(
-      () => repository.submitAnswer(
-        sessionId: any(named: 'sessionId'),
-        questionId: any(named: 'questionId'),
-        selectedChoiceId: any(named: 'selectedChoiceId'),
-      ),
-    ).thenAnswer(
-      (_) async => const Result.success(
-        QuestionFeedback(
-          questionId: 'q1',
-          isCorrect: true,
-          correctChoiceId: 'q1-a',
-        ),
+    when(() => repository.completeSession('sess-1')).thenAnswer(
+      (_) async => Result.success(
+        fakeSession(status: 'COMPLETED', questions: [_qa.answer('q1-a'), _qb]),
       ),
     );
-    when(
-      () => repository.submitSession(
-        sessionId: any(named: 'sessionId'),
-        answers: any(named: 'answers'),
-        totalTime: any(named: 'totalTime'),
-      ),
-    ).thenAnswer(
-      (_) async => const Result.success(
-        SessionResult(
-          sessionId: 'sess-1',
-          totalQuestions: 2,
-          answered: 1,
-          unanswered: 1,
-          correct: 1,
-          incorrect: 0,
-          scorePercent: 50,
-          totalTime: Duration(seconds: 10),
-          averageTimePerQuestion: Duration(seconds: 5),
-        ),
-      ),
-    );
-    when(() => repository.getReview(any()))
-        .thenAnswer((_) async => const Result.success([]));
 
     await _startSessionLeavingQ2Unanswered(tester, repository);
     await tester.tap(find.byTooltip('Review & submit'));
@@ -165,27 +107,15 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Submit session'));
     await tester.pumpAndSettle();
 
-    // Confirmation dialog appears; submission has NOT happened yet.
+    // Confirmation dialog appears; completion has NOT happened yet.
     expect(find.text('Submit this session?'), findsOneWidget);
-    verifyNever(
-      () => repository.submitSession(
-        sessionId: any(named: 'sessionId'),
-        answers: any(named: 'answers'),
-        totalTime: any(named: 'totalTime'),
-      ),
-    );
+    verifyNever(() => repository.completeSession(any()));
 
     await tester.tap(find.widgetWithText(FilledButton, 'Submit'));
     await tester.pumpAndSettle();
 
-    verify(
-      () => repository.submitSession(
-        sessionId: any(named: 'sessionId'),
-        answers: any(named: 'answers'),
-        totalTime: any(named: 'totalTime'),
-      ),
-    ).called(1);
-    // Landed on the Results screen.
+    verify(() => repository.completeSession('sess-1')).called(1);
+    // Landed on the Results screen: 1 correct of 2.
     expect(find.text('SCORE'), findsOneWidget);
     expect(find.text('50%'), findsOneWidget);
   });
@@ -194,28 +124,8 @@ void main() {
     'a submission failure keeps the student on this screen with a retry path',
     (tester) async {
       final repository = MockStudySessionRepository();
-      when(
-        () => repository.submitAnswer(
-          sessionId: any(named: 'sessionId'),
-          questionId: any(named: 'questionId'),
-          selectedChoiceId: any(named: 'selectedChoiceId'),
-        ),
-      ).thenAnswer(
-        (_) async => const Result.success(
-          QuestionFeedback(
-            questionId: 'q1',
-            isCorrect: true,
-            correctChoiceId: 'q1-a',
-          ),
-        ),
-      );
-      when(
-        () => repository.submitSession(
-          sessionId: any(named: 'sessionId'),
-          answers: any(named: 'answers'),
-          totalTime: any(named: 'totalTime'),
-        ),
-      ).thenAnswer((_) async => const Result.failure(NetworkFailure()));
+      when(() => repository.completeSession(any()))
+          .thenAnswer((_) async => const Result.failure(NetworkFailure()));
 
       await _startSessionLeavingQ2Unanswered(tester, repository);
       await tester.tap(find.byTooltip('Review & submit'));

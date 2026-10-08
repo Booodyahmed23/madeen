@@ -66,6 +66,21 @@ final topicsProvider =
       return tree.topicsOf(key.subUnitId);
     });
 
+/// A topic's name, looked up in the trees of the published programs, or
+/// `null` when no program has it. Used to label sessions and attempts,
+/// which carry topic ids only.
+final topicNameProvider = FutureProvider.family<String?, String>((
+  ref,
+  topicId,
+) async {
+  for (final program in await ref.watch(programsProvider.future)) {
+    final tree = await ref.watch(programTreeProvider(program.id).future);
+    final topic = tree.topicById(topicId);
+    if (topic != null) return topic.name;
+  }
+  return null;
+});
+
 /// `FutureProvider` wants a thrown error for its `AsyncError` state, not a
 /// `Result.failure` — this is the one seam where the two error-handling
 /// styles meet. The thrown [AppFailure] is what screens pattern-match on in

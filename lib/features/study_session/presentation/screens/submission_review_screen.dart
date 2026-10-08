@@ -79,7 +79,7 @@ class SubmissionReviewScreen extends ConsumerWidget {
     final failure = state is StudySessionError ? state.failure : null;
     final unansweredIndexes = [
       for (var i = 0; i < active.questions.length; i++)
-        if (!active.selectedAnswers.containsKey(active.questions[i].id)) i,
+        if (!active.isAnswered(active.questions[i].id)) i,
     ];
 
     return Scaffold(

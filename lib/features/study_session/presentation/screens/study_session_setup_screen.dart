@@ -39,7 +39,6 @@ class StudySessionSetupScreen extends ConsumerStatefulWidget {
 class _StudySessionSetupScreenState
     extends ConsumerState<StudySessionSetupScreen> {
   int _questionCount = kQuestionCountOptions.first;
-  QuestionOrder _order = QuestionOrder.original;
   FeedbackMode _feedbackMode = FeedbackMode.immediate;
 
   String get _topicDisplayName => widget.topicName ?? widget.topicId;
@@ -52,7 +51,6 @@ class _StudySessionSetupScreenState
             topicId: widget.topicId,
             topicName: _topicDisplayName,
             questionCount: _questionCount,
-            order: _order,
             feedbackMode: _feedbackMode,
           ),
         );
@@ -125,24 +123,6 @@ class _StudySessionSetupScreenState
                         .toList(),
                   ),
                   const SizedBox(height: MadeenSpace.xl),
-                  MadeenSectionHeader(title: l10n.studySessionSetupOrderLabel),
-                  const SizedBox(height: MadeenSpace.sm),
-                  SegmentedButton<QuestionOrder>(
-                    segments: [
-                      ButtonSegment(
-                        value: QuestionOrder.original,
-                        label: Text(l10n.studySessionSetupOrderOriginal),
-                      ),
-                      ButtonSegment(
-                        value: QuestionOrder.random,
-                        label: Text(l10n.studySessionSetupOrderRandom),
-                      ),
-                    ],
-                    selected: {_order},
-                    onSelectionChanged: (selection) =>
-                        setState(() => _order = selection.first),
-                  ),
-                  const SizedBox(height: MadeenSpace.xl),
                   MadeenSectionHeader(
                     title: l10n.studySessionSetupFeedbackModeLabel,
                   ),
@@ -169,7 +149,9 @@ class _StudySessionSetupScreenState
                   ] else if (failure != null) ...[
                     const SizedBox(height: MadeenSpace.md),
                     Text(
-                      localizedFailureMessage(l10n, failure),
+                      _isNoQuestions(failure)
+                          ? l10n.studySessionNoQuestions
+                          : localizedFailureMessage(l10n, failure),
                       style: MadeenType.bodySm.copyWith(
                         color: MadeenTokens.of(context).error,
                       ),
@@ -207,3 +189,8 @@ class _StudySessionSetupScreenState
     );
   }
 }
+
+/// The API's `400` when the topic has no published questions (contract §A3).
+bool _isNoQuestions(AppFailure failure) =>
+    failure is ValidationFailure &&
+    failure.message.startsWith('No published questions');

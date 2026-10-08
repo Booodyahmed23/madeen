@@ -1,18 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/error/result.dart';
-import 'package:mobile/features/study_session/domain/entities/answer_choice.dart';
-import 'package:mobile/features/study_session/domain/entities/question.dart';
-import 'package:mobile/features/study_session/domain/entities/question_feedback.dart';
-import 'package:mobile/features/study_session/domain/entities/question_review_item.dart';
-import 'package:mobile/features/study_session/domain/entities/question_type.dart';
-import 'package:mobile/features/study_session/domain/entities/session_config.dart';
-import 'package:mobile/features/study_session/domain/entities/session_result.dart';
-import 'package:mobile/features/study_session/domain/entities/study_session_bundle.dart';
 import 'package:mobile/features/study_session/domain/repositories/study_session_repository.dart';
 import 'package:mobile/l10n/generated/app_localizations.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../study_session_fixtures.dart';
 import '../../study_session_test_harness.dart';
 
 class MockStudySessionRepository extends Mock
@@ -24,76 +17,31 @@ class MockStudySessionRepository extends Mock
 const _questionText = 'Which costs vary with production volume?';
 const _explanation = 'Variable costs change in total with output.';
 
-final _bundle = StudySessionBundle(
-  sessionId: 'sess-1',
-  questions: [
-    Question(
-      id: 'q1',
-      text: _questionText,
-      type: QuestionType.multipleChoiceSingle,
-      choices: const [
-        AnswerChoice(id: 'q1-a', text: 'Variable costs', order: 0),
-        AnswerChoice(id: 'q1-b', text: 'Fixed costs', order: 1),
-      ],
-    ),
-  ],
+const _question = FakeQuestion(
+  id: 'q1',
+  text: _questionText,
+  choices: {'q1-a': 'Variable costs', 'q1-b': 'Fixed costs'},
+  correctChoiceId: 'q1-a',
+  explanation: _explanation,
 );
-
-const _result = SessionResult(
-  sessionId: 'sess-1',
-  totalQuestions: 1,
-  answered: 1,
-  unanswered: 0,
-  correct: 1,
-  incorrect: 0,
-  scorePercent: 100,
-  totalTime: Duration(seconds: 30),
-  averageTimePerQuestion: Duration(seconds: 30),
-);
-
-const _review = [
-  QuestionReviewItem(
-    questionId: 'q1',
-    questionText: _questionText,
-    choices: [
-      AnswerChoice(id: 'q1-a', text: 'Variable costs', order: 0),
-      AnswerChoice(id: 'q1-b', text: 'Fixed costs', order: 1),
-    ],
-    correctChoiceId: 'q1-a',
-    selectedChoiceId: 'q1-a',
-    isCorrect: true,
-    explanation: _explanation,
-  ),
-];
 
 void _stubRepository(MockStudySessionRepository repository) {
-  when(() => repository.startSession(any()))
-      .thenAnswer((_) async => Result.success(_bundle));
-  when(
-    () => repository.submitAnswer(
-      sessionId: any(named: 'sessionId'),
-      questionId: any(named: 'questionId'),
-      selectedChoiceId: any(named: 'selectedChoiceId'),
-    ),
-  ).thenAnswer(
-    (_) async => const Result.success(
-      QuestionFeedback(
-        questionId: 'q1',
-        isCorrect: true,
-        correctChoiceId: 'q1-a',
-        explanation: _explanation,
-      ),
-    ),
+  final answered = _question.answer('q1-a', addSeconds: 30);
+  when(() => repository.startSession(any())).thenAnswer(
+    (_) async => Result.success(fakeSession(questions: const [_question])),
   );
   when(
-    () => repository.submitSession(
+    () => repository.answerQuestion(
       sessionId: any(named: 'sessionId'),
-      answers: any(named: 'answers'),
-      totalTime: any(named: 'totalTime'),
+      questionId: any(named: 'questionId'),
+      choiceId: any(named: 'choiceId'),
+      timeSpentSeconds: any(named: 'timeSpentSeconds'),
     ),
-  ).thenAnswer((_) async => const Result.success(_result));
-  when(() => repository.getReview(any()))
-      .thenAnswer((_) async => const Result.success(_review));
+  ).thenAnswer((_) async => Result.success(fakeSession(questions: [answered])));
+  when(() => repository.completeSession(any())).thenAnswer(
+    (_) async =>
+        Result.success(fakeSession(status: 'COMPLETED', questions: [answered])),
+  );
 }
 
 Text _textWidget(WidgetTester tester, String text) =>
@@ -105,18 +53,7 @@ void _expectLtrContentAlignedTo(Text text, TextAlign align) {
 }
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(
-      const SessionConfig(
-        topicId: 'x',
-        topicName: 'x',
-        questionCount: 10,
-        order: QuestionOrder.original,
-        feedbackMode: FeedbackMode.immediate,
-      ),
-    );
-    registerFallbackValue(Duration.zero);
-  });
+  setUpAll(() => registerFallbackValue(testSessionConfig));
 
   testWidgets('Arabic UI: English question, explanation and review keep LTR '
       'punctuation while aligned to the RTL start edge', (tester) async {
@@ -207,17 +144,13 @@ void main() {
     final repository = MockStudySessionRepository();
     when(() => repository.startSession(any())).thenAnswer(
       (_) async => Result.success(
-        StudySessionBundle(
-          sessionId: 'sess-1',
-          questions: [
-            Question(
+        fakeSession(
+          questions: const [
+            FakeQuestion(
               id: 'q1',
               text: arabicQuestion,
-              type: QuestionType.multipleChoiceSingle,
-              choices: const [
-                AnswerChoice(id: 'q1-a', text: 'أ', order: 0),
-                AnswerChoice(id: 'q1-b', text: 'ب', order: 1),
-              ],
+              choices: {'q1-a': 'أ', 'q1-b': 'ب'},
+              correctChoiceId: 'q1-a',
             ),
           ],
         ),

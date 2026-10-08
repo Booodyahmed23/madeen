@@ -1,96 +1,56 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/error/result.dart';
-import 'package:mobile/features/study_session/domain/entities/answer_choice.dart';
-import 'package:mobile/features/study_session/domain/entities/question.dart';
-import 'package:mobile/features/study_session/domain/entities/question_feedback.dart';
-import 'package:mobile/features/study_session/domain/entities/question_review_item.dart';
-import 'package:mobile/features/study_session/domain/entities/question_type.dart';
-import 'package:mobile/features/study_session/domain/entities/session_config.dart';
-import 'package:mobile/features/study_session/domain/entities/session_result.dart';
-import 'package:mobile/features/study_session/domain/entities/study_session_bundle.dart';
 import 'package:mobile/features/study_session/domain/repositories/study_session_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../study_session_fixtures.dart';
 import '../../study_session_test_harness.dart';
 
 class MockStudySessionRepository extends Mock
     implements StudySessionRepository {}
 
-final _bundle = StudySessionBundle(
-  sessionId: 'sess-1',
-  questions: [
-    Question(
-      id: 'q1',
-      text: 'Question 1',
-      type: QuestionType.multipleChoiceSingle,
-      choices: const [
-        AnswerChoice(id: 'q1-a', text: 'Correct answer', order: 0),
-        AnswerChoice(id: 'q1-b', text: 'Wrong answer', order: 1),
-      ],
-    ),
-  ],
+const _question = FakeQuestion(
+  id: 'q1',
+  text: 'Question 1',
+  choices: {'q1-a': 'Correct answer', 'q1-b': 'Wrong answer'},
+  correctChoiceId: 'q1-a',
+  explanation: 'Because it is.',
 );
 
-const _result = SessionResult(
-  sessionId: 'sess-1',
-  totalQuestions: 1,
-  answered: 1,
-  unanswered: 0,
-  correct: 1,
-  incorrect: 0,
-  scorePercent: 100,
-  totalTime: Duration(seconds: 30),
-  averageTimePerQuestion: Duration(seconds: 30),
+const _skipped = FakeQuestion(
+  id: 'q2',
+  text: 'Question 2',
+  choices: {'q2-a': 'Right', 'q2-b': 'Other'},
+  correctChoiceId: 'q2-a',
 );
-
-final _review = [
-  const QuestionReviewItem(
-    questionId: 'q1',
-    questionText: 'Question 1',
-    choices: [
-      AnswerChoice(id: 'q1-a', text: 'Correct answer', order: 0),
-      AnswerChoice(id: 'q1-b', text: 'Wrong answer', order: 1),
-    ],
-    correctChoiceId: 'q1-a',
-    selectedChoiceId: 'q1-a',
-    isCorrect: true,
-    explanation: 'Because it is.',
-  ),
-];
 
 Future<void> _completeSession(
   WidgetTester tester,
   MockStudySessionRepository repository, {
-  List<QuestionReviewItem>? review,
+  List<FakeQuestion> completedQuestions = const [],
 }) async {
   useTallSurface(tester);
-  when(() => repository.startSession(any()))
-      .thenAnswer((_) async => Result.success(_bundle));
+  final answered = _question.answer('q1-a', addSeconds: 30);
+  when(() => repository.startSession(any())).thenAnswer(
+    (_) async => Result.success(fakeSession(questions: const [_question])),
+  );
   when(
-    () => repository.submitAnswer(
+    () => repository.answerQuestion(
       sessionId: any(named: 'sessionId'),
-      questionId: any(named: 'questionId'),
-      selectedChoiceId: any(named: 'selectedChoiceId'),
+      questionId: 'q1',
+      choiceId: 'q1-a',
+      timeSpentSeconds: any(named: 'timeSpentSeconds'),
     ),
-  ).thenAnswer(
-    (_) async => const Result.success(
-      QuestionFeedback(
-        questionId: 'q1',
-        isCorrect: true,
-        correctChoiceId: 'q1-a',
+  ).thenAnswer((_) async => Result.success(fakeSession(questions: [answered])));
+  when(() => repository.completeSession(any())).thenAnswer(
+    (_) async => Result.success(
+      fakeSession(
+        status: 'COMPLETED',
+        questions: completedQuestions.isEmpty ? [answered] : completedQuestions,
       ),
     ),
   );
-  when(
-    () => repository.submitSession(
-      sessionId: any(named: 'sessionId'),
-      answers: any(named: 'answers'),
-      totalTime: any(named: 'totalTime'),
-    ),
-  ).thenAnswer((_) async => const Result.success(_result));
-  when(() => repository.getReview(any()))
-      .thenAnswer((_) async => Result.success(review ?? _review));
 
   await tester.pumpWidget(
     wrapStudySessionScreen(
@@ -116,32 +76,19 @@ Future<void> _completeSession(
 }
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(
-      const SessionConfig(
-        topicId: 'x',
-        topicName: 'x',
-        questionCount: 10,
-        order: QuestionOrder.original,
-        feedbackMode: FeedbackMode.immediate,
-      ),
-    );
-    registerFallbackValue(Duration.zero);
-  });
+  setUpAll(() => registerFallbackValue(testSessionConfig));
 
   testWidgets(
-    'shows the authoritative score and every metric from the backend result',
+    'shows the score and metrics derived from the completed session',
     (tester) async {
       final repository = MockStudySessionRepository();
       await _completeSession(tester, repository);
 
       expect(find.text('100%'), findsOneWidget);
-      expect(
-        find.text('1'),
-        findsWidgets,
-      ); // totalQuestions/answered/correct all 1
+      expect(find.text('1'), findsWidgets); // total/answered/correct all 1
       expect(find.text('0'), findsWidgets); // unanswered/incorrect
-      expect(find.text('00:30'), findsWidgets); // total time + average time
+      // Σ timeSpentSeconds from the server: total and average.
+      expect(find.text('00:30'), findsWidgets);
     },
   );
 
@@ -168,19 +115,46 @@ void main() {
     expect(find.text('Home'), findsOneWidget);
   });
 
-  testWidgets(
-    'an empty review list is handled gracefully on the Review screen',
-    (tester) async {
-      final repository = MockStudySessionRepository();
-      await _completeSession(tester, repository, review: const []);
+  testWidgets('a skipped question the server did not reveal says its answer is '
+      'not shown', (tester) async {
+    final repository = MockStudySessionRepository();
+    await _completeSession(
+      tester,
+      repository,
+      completedQuestions: [
+        _question.answer('q1-a', addSeconds: 30),
+        const FakeQuestion(
+          id: 'q2',
+          text: 'Question 2',
+          choices: {'q2-a': 'Right', 'q2-b': 'Other'},
+          correctChoiceId: 'q2-a',
+          revealed: false,
+        ),
+      ],
+    );
 
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Review answers'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Review answers'));
+    await tester.pumpAndSettle();
 
-      expect(
-        find.text('Review is unavailable for this session.'),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(find.text('2. Question 2'), findsOneWidget);
+    expect(find.text("You didn't answer this question."), findsOneWidget);
+    expect(find.text('Not shown for skipped questions.'), findsOneWidget);
+  });
+
+  testWidgets('a skipped question the server revealed shows its answer', (
+    tester,
+  ) async {
+    final repository = MockStudySessionRepository();
+    await _completeSession(
+      tester,
+      repository,
+      completedQuestions: [_question.answer('q1-a', addSeconds: 30), _skipped],
+    );
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Review answers'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Right'), findsOneWidget);
+    expect(find.text('Not shown for skipped questions.'), findsNothing);
+  });
 }

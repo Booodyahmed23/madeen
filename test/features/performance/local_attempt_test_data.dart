@@ -11,7 +11,6 @@ const varianceConfig = SessionConfig(
   topicId: 'topic-variance-analysis',
   topicName: 'Variance Analysis',
   questionCount: 10,
-  order: QuestionOrder.original,
   feedbackMode: FeedbackMode.atEnd,
 );
 

@@ -4,13 +4,12 @@ import '../../../../core/error/app_failure.dart';
 import '../../../../core/error/failure_mapper.dart';
 import '../../../../core/error/result.dart';
 import '../../../../core/network/api_exception.dart';
-import '../../domain/entities/question_feedback.dart';
-import '../../domain/entities/question_review_item.dart';
+import '../../../../core/network/paginated.dart';
 import '../../domain/entities/session_config.dart';
-import '../../domain/entities/session_result.dart';
-import '../../domain/entities/study_session_bundle.dart';
+import '../../domain/entities/study_session.dart';
 import '../../domain/repositories/study_session_repository.dart';
 import '../datasources/study_session_data_source.dart';
+import '../models/study_session_model.dart';
 
 class StudySessionRepositoryImpl implements StudySessionRepository {
   StudySessionRepositoryImpl(this._dataSource);
@@ -18,52 +17,86 @@ class StudySessionRepositoryImpl implements StudySessionRepository {
   final StudySessionDataSource _dataSource;
 
   @override
-  Future<Result<StudySessionBundle>> startSession(SessionConfig config) =>
-      _guard(() async => (await _dataSource.startSession(config)).toEntity());
+  Future<Result<StudySession>> startSession(SessionConfig config) =>
+      _session(() => _dataSource.startSession(config));
 
   @override
-  Future<Result<QuestionFeedback>> submitAnswer({
+  Future<Result<StudySession>> getSession(String sessionId) =>
+      _session(() => _dataSource.getSession(sessionId));
+
+  @override
+  Future<Result<Paginated<StudySessionSummary>>> listSessions({
+    int page = 1,
+    int limit = 20,
+  }) => _guard(
+    () async => Paginated.fromJson(
+      await _dataSource.listSessions(page: page, limit: limit),
+      studySessionSummaryFromJson,
+    ),
+  );
+
+  @override
+  Future<Result<StudySession>> answerQuestion({
     required String sessionId,
     required String questionId,
-    String? selectedChoiceId,
-  }) => _guard(
-    () async => (await _dataSource.submitAnswer(
+    required String choiceId,
+    int? timeSpentSeconds,
+  }) => _session(
+    () => _dataSource.answerQuestion(
       sessionId: sessionId,
       questionId: questionId,
-      selectedChoiceId: selectedChoiceId,
-    )).toEntity(),
+      choiceId: choiceId,
+      timeSpentSeconds: timeSpentSeconds?.clamp(0, 3600),
+    ),
   );
 
   @override
-  Future<Result<SessionResult>> submitSession({
+  Future<Result<StudySession>> flagQuestion({
     required String sessionId,
-    required Map<String, String?> answers,
-    required Duration totalTime,
-  }) => _guard(
-    () async => (await _dataSource.submitSession(
+    required String questionId,
+    required bool flagged,
+  }) => _session(
+    () => _dataSource.flagQuestion(
       sessionId: sessionId,
-      answers: answers,
-      totalTime: totalTime,
-    )).toEntity(),
+      questionId: questionId,
+      flagged: flagged,
+    ),
   );
 
   @override
-  Future<Result<List<QuestionReviewItem>>> getReview(String sessionId) =>
-      _guard(
-        () async =>
-            (await _dataSource.getReview(sessionId))
-                .map((m) => m.toEntity())
-                .toList(),
-      );
+  Future<Result<StudySession>> pauseSession(String sessionId) =>
+      _session(() => _dataSource.pauseSession(sessionId));
+
+  @override
+  Future<Result<StudySession>> resumeSession(String sessionId) =>
+      _session(() => _dataSource.resumeSession(sessionId));
+
+  @override
+  Future<Result<StudySession>> completeSession(String sessionId) async {
+    final result = await _session(() => _dataSource.completeSession(sessionId));
+    if (result is Failure<StudySession> &&
+        result.failure is ValidationFailure) {
+      // `400` "already completed" — e.g. a retry after the first response
+      // was lost. Continue with the session as the server has it.
+      final current = await getSession(sessionId);
+      if (current case Success(:final value) when value.isCompleted) {
+        return current;
+      }
+    }
+    return result;
+  }
+
+  Future<Result<StudySession>> _session(Future<Json> Function() call) =>
+      _guard(() async => studySessionFromJson(await call()));
 
   Future<Result<T>> _guard<T>(Future<T> Function() action) async {
     try {
       return Result.success(await action());
     } on ApiException catch (error) {
       return Result.failure(mapApiExceptionToFailure(error));
-    } catch (error) {
-      // Malformed/unexpected response shape, or a mock-data inconsistency
-      // (e.g. unknown sessionId) — never let a raw exception reach the UI.
+    } catch (_) {
+      // Malformed/unexpected response shape — never let a raw exception
+      // reach the UI.
       return const Result.failure(UnknownFailure());
     }
   }

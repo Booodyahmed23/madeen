@@ -60,6 +60,10 @@ class ActiveStudySessionScreen extends ConsumerWidget {
       );
     }
 
+    void notify(String message) => ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+
     final question = state.currentQuestion;
     final selectedChoiceId = state.selectedChoiceForCurrent;
     final feedback = state.feedbackForCurrent;
@@ -80,11 +84,28 @@ class ActiveStudySessionScreen extends ConsumerWidget {
           title: Text(state.config.topicName),
           actions: [
             IconButton(
+              tooltip: state.isCurrentFlagged
+                  ? l10n.studySessionUnflag
+                  : l10n.studySessionFlag,
+              icon: Icon(
+                state.isCurrentFlagged ? Icons.flag : Icons.outlined_flag,
+              ),
+              onPressed: () async {
+                if (!await notifier.toggleFlag()) {
+                  notify(l10n.studySessionActionFailed);
+                }
+              },
+            ),
+            IconButton(
               tooltip: state.isPaused
                   ? l10n.studySessionResumeButton
                   : l10n.studySessionPauseButton,
               icon: Icon(state.isPaused ? Icons.play_arrow : Icons.pause),
-              onPressed: notifier.togglePause,
+              onPressed: () async {
+                if (!await notifier.togglePause()) {
+                  notify(l10n.studySessionActionFailed);
+                }
+              },
             ),
             IconButton(
               tooltip: l10n.studySessionReviewAndSubmitButton,
@@ -148,11 +169,18 @@ class ActiveStudySessionScreen extends ConsumerWidget {
                             child: AnswerChoiceTile(
                               choice: choice,
                               isSelected: choice.id == selectedChoiceId,
-                              isLocked: showFeedback,
+                              isLocked:
+                                  state.isCurrentLocked ||
+                                  state.isSubmittingAnswer,
                               isCorrectChoice: feedback == null
                                   ? null
                                   : choice.id == feedback.correctChoiceId,
-                              onTap: () => notifier.selectChoice(choice.id),
+                              onTap: () async {
+                                if (!await notifier.selectChoice(choice.id) &&
+                                    !state.isCurrentLocked) {
+                                  notify(l10n.studySessionAnswerNotSaved);
+                                }
+                              },
                             ),
                           ),
                         if (showFeedback && feedback != null)
@@ -220,7 +248,16 @@ class _BottomBar extends StatelessWidget {
               child: FilledButton(
                 onPressed: state.isSubmittingAnswer
                     ? null
-                    : () => notifier.submitCurrentAnswer(),
+                    : () async {
+                        if (!await notifier.submitCurrentAnswer() &&
+                            context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(l10n.studySessionAnswerNotSaved),
+                            ),
+                          );
+                        }
+                      },
                 child: state.isSubmittingAnswer
                     ? const SizedBox(
                         width: 18,

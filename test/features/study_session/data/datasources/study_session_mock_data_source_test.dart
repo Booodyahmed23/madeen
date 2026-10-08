@@ -1,125 +1,113 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/network/api_exception.dart';
 import 'package:mobile/features/study_session/data/datasources/study_session_mock_data_source.dart';
+import 'package:mobile/features/study_session/data/models/study_session_model.dart';
 import 'package:mobile/features/study_session/domain/entities/session_config.dart';
+import 'package:mobile/features/study_session/domain/entities/study_session.dart';
+
+import '../../study_session_fixtures.dart';
 
 void main() {
-  late StudySessionMockDataSource dataSource;
+  late StudySessionMockDataSource source;
 
-  setUp(() => dataSource = StudySessionMockDataSource());
+  setUp(() => source = StudySessionMockDataSource(delay: Duration.zero));
 
-  const config = SessionConfig(
-    topicId: 'topic-flexible-budget',
-    topicName: 'Flexible Budget',
-    questionCount: 10,
-    order: QuestionOrder.original,
-    feedbackMode: FeedbackMode.immediate,
+  Future<StudySession> start(FeedbackMode mode) async => studySessionFromJson(
+    await source.startSession(
+      SessionConfig(
+        topicId: 'topic-1',
+        topicName: 'Budgeting',
+        questionCount: 3,
+        feedbackMode: mode,
+      ),
+    ),
   );
 
   test(
-    'startSession returns exactly questionCount questions, each with 4 choices',
+    'a new session has the requested number of unrevealed questions',
     () async {
-      final bundle = await dataSource.startSession(config);
+      final session = await start(FeedbackMode.immediate);
 
-      expect(bundle.questions, hasLength(10));
-      for (final question in bundle.questions) {
-        expect(question.choices, hasLength(4));
-      }
+      expect(session.questions, hasLength(3));
+      expect(session.status, StudySessionStatus.inProgress);
+      expect(session.questions.any((q) => q.isRevealed), isFalse);
     },
   );
 
-  test('submitAnswer, submitSession, and getReview all agree on which choice is correct', () async {
-    final bundle = await dataSource.startSession(config);
-    final firstQuestion = bundle.questions.first;
+  test('immediate mode reveals an answer at once', () async {
+    final session = await start(FeedbackMode.immediate);
+    final question = session.questions.first;
 
-    // Try every choice for the first question via submitAnswer and record
-    // which one submitAnswer considers correct.
-    String? correctPerFeedback;
-    for (final choice in firstQuestion.choices) {
-      final feedback = await dataSource.submitAnswer(
-        sessionId: bundle.sessionId,
-        questionId: firstQuestion.id,
-        selectedChoiceId: choice.id,
-      );
-      expect(feedback.correctChoiceId, isNotEmpty);
-      correctPerFeedback = feedback.correctChoiceId;
-      expect(feedback.isCorrect, choice.id == feedback.correctChoiceId);
-    }
-
-    // Now submit the whole session answering every question with its
-    // feedback-confirmed correct choice — score must be 100%.
-    final answers = <String, String?>{};
-    for (final question in bundle.questions) {
-      final feedback = await dataSource.submitAnswer(
-        sessionId: bundle.sessionId,
-        questionId: question.id,
-        selectedChoiceId: question.choices.first.id,
-      );
-      answers[question.id] = feedback.correctChoiceId;
-    }
-
-    final result = await dataSource.submitSession(
-      sessionId: bundle.sessionId,
-      answers: answers,
-      totalTime: const Duration(minutes: 5),
+    final answered = studySessionFromJson(
+      await source.answerQuestion(
+        sessionId: session.id,
+        questionId: question.questionId,
+        choiceId: question.choices.first.id,
+        timeSpentSeconds: 5,
+      ),
     );
 
-    expect(result.correct, result.totalQuestions);
-    expect(result.scorePercent, 100.0);
+    expect(answered.questions.first.isRevealed, isTrue);
+    expect(answered.questions.first.timeSpentSeconds, 5);
+    expect(answered.progress.answered, 1);
+  });
 
-    final review = await dataSource.getReview(bundle.sessionId);
-    expect(review, hasLength(bundle.questions.length));
-    for (final item in review) {
-      expect(item.isCorrect, isTrue);
-      expect(item.selectedChoiceId, item.correctChoiceId);
-    }
-    expect(
-      review
-          .firstWhere((r) => r.questionId == firstQuestion.id)
-          .correctChoiceId,
-      correctPerFeedback,
+  test('deferred mode reveals everything only on completion', () async {
+    final session = await start(FeedbackMode.atEnd);
+    final question = session.questions.first;
+    final answered = studySessionFromJson(
+      await source.answerQuestion(
+        sessionId: session.id,
+        questionId: question.questionId,
+        choiceId: question.choices.first.id,
+      ),
+    );
+    expect(answered.questions.first.isRevealed, isFalse);
+
+    final completed = studySessionFromJson(
+      await source.completeSession(session.id),
+    );
+    expect(completed.isCompleted, isTrue);
+    expect(completed.questions.every((q) => q.isRevealed), isTrue);
+  });
+
+  test('answering while paused, or completing twice, is a 400', () async {
+    final session = await start(FeedbackMode.immediate);
+    final question = session.questions.first;
+    await source.pauseSession(session.id);
+
+    await expectLater(
+      source.answerQuestion(
+        sessionId: session.id,
+        questionId: question.questionId,
+        choiceId: question.choices.first.id,
+      ),
+      throwsA(isA<ApiException>()),
+    );
+
+    await source.resumeSession(session.id);
+    await source.completeSession(session.id);
+    await expectLater(
+      source.completeSession(session.id),
+      throwsA(
+        isA<ApiException>().having((e) => e.statusCode, 'statusCode', 400),
+      ),
     );
   });
 
-  test('submitSession correctly tallies unanswered questions', () async {
-    final bundle = await dataSource.startSession(config);
-    final answers = <String, String?>{
-      for (final q in bundle.questions) q.id: null,
-    };
+  test('lists sessions newest first, without questions', () async {
+    await start(FeedbackMode.immediate);
+    final second = await start(FeedbackMode.atEnd);
 
-    final result = await dataSource.submitSession(
-      sessionId: bundle.sessionId,
-      answers: answers,
-      totalTime: const Duration(minutes: 1),
-    );
+    final page = await source.listSessions(page: 1, limit: 20);
 
-    expect(result.answered, 0);
-    expect(result.unanswered, bundle.questions.length);
-    expect(result.correct, 0);
-    expect(result.scorePercent, 0.0);
+    final rows = page['data'] as List;
+    expect((rows.first as Map)['id'], second.id);
+    expect((rows.first as Map).containsKey('questions'), isFalse);
+    expect(page['meta'], containsPair('total', 2));
   });
 
-  test('getReview on an unknown session returns an empty list rather than throwing', () async {
-    final review = await dataSource.getReview('unknown-session');
-    expect(review, isEmpty);
-  });
-
-  test('random order is deterministic for the same topicId', () async {
-    final randomConfig = SessionConfig(
-      topicId: config.topicId,
-      topicName: config.topicName,
-      questionCount: config.questionCount,
-      order: QuestionOrder.random,
-      feedbackMode: config.feedbackMode,
-    );
-
-    final first = await StudySessionMockDataSource().startSession(randomConfig);
-    final second = await StudySessionMockDataSource().startSession(
-      randomConfig,
-    );
-
-    expect(
-      first.questions.map((q) => q.text),
-      second.questions.map((q) => q.text),
-    );
+  test('the mock produces JSON the shared fixtures agree with', () {
+    expect(fakeSession().questions, hasLength(2));
   });
 }

@@ -1,10 +1,8 @@
 import 'answer_choice.dart';
 
-/// One question's full post-session review — everything here is only
-/// available *after* submission, fetched fresh from the repository rather
-/// than reconstructed from earlier [QuestionFeedback] responses, so the
-/// Review screen never shows information the backend hasn't actually
-/// confirmed for this session.
+/// One question's post-session review, built from the completed session
+/// the server returns — never reconstructed from what was shown during the
+/// session.
 class QuestionReviewItem {
   const QuestionReviewItem({
     required this.questionId,
@@ -19,10 +17,17 @@ class QuestionReviewItem {
   final String questionId;
   final String questionText;
   final List<AnswerChoice> choices;
-  final String correctChoiceId;
+
+  /// `null` when the server didn't reveal this question (a skipped question,
+  /// on servers that reveal only answered ones).
+  final String? correctChoiceId;
 
   /// `null` when the student left this question unanswered.
   final String? selectedChoiceId;
-  final bool isCorrect;
+
+  /// `null` for a skipped question.
+  final bool? isCorrect;
   final String? explanation;
+
+  bool get isSkipped => selectedChoiceId == null;
 }

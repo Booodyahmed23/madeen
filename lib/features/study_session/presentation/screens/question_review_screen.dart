@@ -65,7 +65,11 @@ class _ReviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final t = MadeenTokens.of(context);
-    final statusColor = item.isCorrect ? t.success : t.error;
+    final statusColor = switch (item.isCorrect) {
+      true => t.success,
+      false => t.error,
+      null => t.inkTertiary,
+    };
 
     String choiceText(String? choiceId) {
       if (choiceId == null) return l10n.studySessionReviewNoAnswer;
@@ -105,7 +109,11 @@ class _ReviewCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
-                item.isCorrect ? Icons.check_circle : Icons.cancel,
+                switch (item.isCorrect) {
+                  true => Icons.check_circle,
+                  false => Icons.cancel,
+                  null => Icons.remove_circle_outline,
+                },
                 color: statusColor,
                 size: 20,
               ),
@@ -127,7 +135,9 @@ class _ReviewCard extends StatelessWidget {
           ),
           field(
             l10n.studySessionReviewCorrectAnswerLabel,
-            choiceText(item.correctChoiceId),
+            item.correctChoiceId == null
+                ? l10n.studySessionReviewCorrectAnswerHidden
+                : choiceText(item.correctChoiceId),
           ),
           if (item.explanation != null && item.explanation!.isNotEmpty)
             field(l10n.studySessionExplanationLabel, item.explanation!),

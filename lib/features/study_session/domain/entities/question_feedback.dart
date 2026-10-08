@@ -1,8 +1,5 @@
-/// Returned by the repository after submitting one answer in Immediate
-/// Feedback mode — the *only* place a correct-answer id or explanation is
-/// allowed to reach the app, and only for the question just answered.
-/// Never derived or guessed client-side (ARCHITECTURE.md's "never trust the
-/// client as the authority for correct answers").
+/// Immediate feedback for one answered question, read from the session the
+/// server returned after the answer — never derived or guessed client-side.
 class QuestionFeedback {
   const QuestionFeedback({
     required this.questionId,

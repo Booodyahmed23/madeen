@@ -1,38 +1,42 @@
 import '../../../../core/error/result.dart';
-import '../entities/question_feedback.dart';
-import '../entities/question_review_item.dart';
+import '../../../../core/network/paginated.dart';
 import '../entities/session_config.dart';
-import '../entities/session_result.dart';
-import '../entities/study_session_bundle.dart';
+import '../entities/study_session.dart';
 
-/// The mobile app's only window onto Question Bank / Study Session data —
-/// presentation code depends on this interface, never on a concrete data
-/// source (see STUDY_SESSION_API_REQUIREMENTS.md at the repo root of
-/// mobile/ for the proposed backend contract this mirrors).
+/// The mobile app's only window onto study sessions (contract §A3). Every
+/// call that changes a session returns the whole session as the server now
+/// has it.
 abstract class StudySessionRepository {
-  Future<Result<StudySessionBundle>> startSession(SessionConfig config);
+  Future<Result<StudySession>> startSession(SessionConfig config);
 
-  /// Immediate-feedback mode only — records the answer server-side and
-  /// returns the correct answer + explanation for *this* question. Never
-  /// called in "feedback at end" mode (answers there are held locally and
-  /// sent all at once via [submitSession]).
-  Future<Result<QuestionFeedback>> submitAnswer({
+  Future<Result<StudySession>> getSession(String sessionId);
+
+  /// Newest first.
+  Future<Result<Paginated<StudySessionSummary>>> listSessions({
+    int page = 1,
+    int limit = 20,
+  });
+
+  /// Records the student's choice. [timeSpentSeconds] is *added* to the
+  /// question's stored total — send only the time since the last call.
+  Future<Result<StudySession>> answerQuestion({
     required String sessionId,
     required String questionId,
-    String? selectedChoiceId,
+    required String choiceId,
+    int? timeSpentSeconds,
   });
 
-  /// Finalizes the session and returns the authoritative [SessionResult].
-  /// Called exactly once per session, in both feedback modes — `answers`
-  /// is the complete question-id → selected-choice-id map (nulls allowed
-  /// for unanswered questions), sent idempotently even if some were already
-  /// recorded via [submitAnswer].
-  Future<Result<SessionResult>> submitSession({
+  Future<Result<StudySession>> flagQuestion({
     required String sessionId,
-    required Map<String, String?> answers,
-    required Duration totalTime,
+    required String questionId,
+    required bool flagged,
   });
 
-  /// Full per-question review — only meaningful after [submitSession].
-  Future<Result<List<QuestionReviewItem>>> getReview(String sessionId);
+  Future<Result<StudySession>> pauseSession(String sessionId);
+
+  Future<Result<StudySession>> resumeSession(String sessionId);
+
+  /// Completes the session; one that is already completed is fetched
+  /// instead, so a retried completion still lands on the result.
+  Future<Result<StudySession>> completeSession(String sessionId);
 }

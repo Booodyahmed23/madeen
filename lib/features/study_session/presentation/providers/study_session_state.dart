@@ -4,30 +4,23 @@ import '../../domain/entities/question_feedback.dart';
 import '../../domain/entities/question_review_item.dart';
 import '../../domain/entities/session_config.dart';
 import '../../domain/entities/session_result.dart';
+import '../../domain/entities/study_session.dart';
 
 /// Where the student is on the *current* question, while [StudySessionActive].
-/// Covers this phase's minimum-state requirement (Ready/Answering/Feedback)
-/// as a field on the active state rather than three near-duplicate state
-/// classes — Ready→Answering→Feedback share every field (config, questions,
-/// index, answers, timer...); only what's drawn on screen changes.
 enum QuestionPhase {
   /// Question shown, nothing selected yet.
   ready,
 
-  /// Student has picked a choice but not (yet, in immediate mode) submitted
-  /// it. In "feedback at end" mode this is also the terminal phase for a
-  /// question — Next simply moves on, nothing is ever revealed here.
+  /// A choice is selected. In immediate mode it isn't checked yet; in
+  /// "feedback at end" mode this is the terminal phase for a question.
   answering,
 
-  /// Immediate-feedback mode only, after [QuestionFeedback] comes back:
-  /// correct/incorrect + correct choice + explanation are now safe to show
-  /// for *this* question only.
+  /// Immediate mode only: the server revealed this answered question.
   feedback,
 }
 
 /// Study Session state machine. Deliberately scoped to this feature only —
-/// no unrelated app state lives here, and nothing outside this feature reads
-/// it directly (screens go through [studySessionNotifierProvider]).
+/// screens go through [studySessionNotifierProvider].
 sealed class StudySessionState {
   const StudySessionState();
 }
@@ -36,83 +29,94 @@ class StudySessionInitial extends StudySessionState {
   const StudySessionInitial();
 }
 
-/// Starting a session (awaiting [StudySessionRepository.startSession]).
+/// Starting or reopening a session.
 class StudySessionLoading extends StudySessionState {
   const StudySessionLoading();
 }
 
+/// A session in progress (or paused). [session] is the server's copy —
+/// answers, flags, progress and reveals all come from it; the only local
+/// additions are which question is on screen, an immediate-mode choice not
+/// yet checked, and the running clock.
 class StudySessionActive extends StudySessionState {
-  const StudySessionActive({
+  StudySessionActive({
     required this.config,
-    required this.sessionId,
-    required this.questions,
+    required this.session,
     required this.currentIndex,
-    required this.selectedAnswers,
-    required this.answeredQuestionIds,
-    required this.feedbackByQuestion,
-    required this.phase,
+    this.draftChoices = const {},
     required this.elapsed,
     required this.isPaused,
     this.isSubmittingAnswer = false,
   });
 
   final SessionConfig config;
-  final String sessionId;
-  final List<Question> questions;
+  final StudySession session;
   final int currentIndex;
 
-  /// questionId → selected choice id. Holds every choice the student has
-  /// made so far, in *both* feedback modes — in "at end" mode this is the
-  /// only record of answers, sent all at once by [submitSession]; in
-  /// immediate mode it's kept in step with what's already been confirmed
-  /// server-side via [answeredQuestionIds].
-  final Map<String, String> selectedAnswers;
-
-  /// Immediate-feedback mode only: questions already confirmed via
-  /// submitAnswer — locks the choice tiles so a confirmed answer can't be
-  /// silently changed after the correct answer has been shown.
-  final Set<String> answeredQuestionIds;
-
-  /// Immediate-feedback mode only: questionId → the feedback returned for
-  /// it. Never populated in "feedback at end" mode.
-  final Map<String, QuestionFeedback> feedbackByQuestion;
-
-  final QuestionPhase phase;
+  /// questionId → a choice picked but not yet sent: immediate mode before
+  /// "Check answer", or while the answer call is in flight.
+  final Map<String, String> draftChoices;
   final Duration elapsed;
   final bool isPaused;
 
-  /// True only while an immediate-mode submitAnswer call is in flight.
+  /// True while an answer call is in flight.
   final bool isSubmittingAnswer;
+
+  String get sessionId => session.id;
+
+  late final List<Question> questions = [
+    for (final question in session.questions) question.toQuestion(),
+  ];
+
+  SessionQuestion get currentSessionQuestion => session.questions[currentIndex];
 
   Question get currentQuestion => questions[currentIndex];
   int get totalQuestions => questions.length;
   bool get isLastQuestion => currentIndex == questions.length - 1;
   bool get isFirstQuestion => currentIndex == 0;
-  int get answeredCount => selectedAnswers.length;
+
+  /// Answers the server has recorded.
+  int get answeredCount => session.progress.answered;
   int get unansweredCount => totalQuestions - answeredCount;
-  String? get selectedChoiceForCurrent => selectedAnswers[currentQuestion.id];
+
+  bool isAnswered(String questionId) =>
+      session.questionById(questionId)?.isAnswered ?? false;
+
+  String? selectedChoiceFor(String questionId) =>
+      draftChoices[questionId] ??
+      session.questionById(questionId)?.selectedChoiceId;
+
+  String? get selectedChoiceForCurrent => selectedChoiceFor(currentQuestion.id);
+
+  /// Only in immediate mode — deferred answers are revealed at the end.
   QuestionFeedback? get feedbackForCurrent =>
-      feedbackByQuestion[currentQuestion.id];
+      config.feedbackMode == FeedbackMode.immediate
+      ? session.feedbackFor(currentQuestion.id)
+      : null;
+
+  bool get isCurrentLocked => session.isLocked(currentSessionQuestion);
+
+  bool get isCurrentFlagged => currentSessionQuestion.isFlagged;
+
+  QuestionPhase get phase {
+    if (feedbackForCurrent != null) return QuestionPhase.feedback;
+    if (selectedChoiceForCurrent != null) return QuestionPhase.answering;
+    return QuestionPhase.ready;
+  }
 
   StudySessionActive copyWith({
+    StudySession? session,
     int? currentIndex,
-    Map<String, String>? selectedAnswers,
-    Set<String>? answeredQuestionIds,
-    Map<String, QuestionFeedback>? feedbackByQuestion,
-    QuestionPhase? phase,
+    Map<String, String>? draftChoices,
     Duration? elapsed,
     bool? isPaused,
     bool? isSubmittingAnswer,
   }) {
     return StudySessionActive(
       config: config,
-      sessionId: sessionId,
-      questions: questions,
+      session: session ?? this.session,
       currentIndex: currentIndex ?? this.currentIndex,
-      selectedAnswers: selectedAnswers ?? this.selectedAnswers,
-      answeredQuestionIds: answeredQuestionIds ?? this.answeredQuestionIds,
-      feedbackByQuestion: feedbackByQuestion ?? this.feedbackByQuestion,
-      phase: phase ?? this.phase,
+      draftChoices: draftChoices ?? this.draftChoices,
       elapsed: elapsed ?? this.elapsed,
       isPaused: isPaused ?? this.isPaused,
       isSubmittingAnswer: isSubmittingAnswer ?? this.isSubmittingAnswer,
@@ -120,9 +124,8 @@ class StudySessionActive extends StudySessionState {
   }
 }
 
-/// Final submission in flight. Carries the [active] snapshot it was
-/// submitted from so a failure can restore it exactly — submitting must
-/// never discard the student's answers.
+/// Completion in flight. Carries the [active] snapshot so a failure can
+/// restore it exactly.
 class StudySessionSubmitting extends StudySessionState {
   const StudySessionSubmitting(this.active);
 
@@ -132,22 +135,21 @@ class StudySessionSubmitting extends StudySessionState {
 class StudySessionCompleted extends StudySessionState {
   const StudySessionCompleted({
     required this.config,
+    required this.session,
     required this.result,
     required this.review,
   });
 
   final SessionConfig config;
+  final StudySession session;
 
-  /// Authoritative — sourced from the backend, never recomputed locally.
+  /// Derived from the server's completed session.
   final SessionResult result;
   final List<QuestionReviewItem> review;
 }
 
-/// A session failed to start or submit. [retryFrom], when non-null, is the
-/// active snapshot to resume from if the student retries rather than
-/// abandoning the session (e.g. a submit that failed on a network error).
-/// `null` only when there is nothing to resume — e.g. starting a session
-/// failed before any questions were ever loaded.
+/// A session failed to start, reopen or complete. [retryFrom], when
+/// non-null, is the active snapshot to go back to (a failed completion).
 class StudySessionError extends StudySessionState {
   const StudySessionError({required this.failure, this.retryFrom});
 

@@ -46,7 +46,9 @@ class ForbiddenFailure extends AppFailure {
 /// tried to start (a study session or exam) — the UI responds by offering
 /// the Plans screen rather than a dead-end error (contract §G8).
 class NoAccessFailure extends ForbiddenFailure {
-  const NoAccessFailure([super.message = 'An active subscription is required.']);
+  const NoAccessFailure([
+    super.message = 'An active subscription is required.',
+  ]);
 }
 
 class ValidationFailure extends AppFailure {

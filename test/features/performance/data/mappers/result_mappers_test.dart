@@ -18,7 +18,6 @@ void main() {
         topicId: 'topic-budgeting',
         topicName: 'Budgeting',
         questionCount: 20,
-        order: QuestionOrder.random,
         feedbackMode: FeedbackMode.immediate,
       );
       const result = SessionResult(

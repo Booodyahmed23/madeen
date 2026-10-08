@@ -16,14 +16,7 @@ import 'package:mobile/features/curriculum/domain/entities/topic.dart';
 import 'package:mobile/features/curriculum/domain/entities/unit.dart';
 import 'package:mobile/features/curriculum/domain/repositories/curriculum_repository.dart';
 import 'package:mobile/features/study_session/data/repositories/study_session_repository_impl.dart';
-import 'package:mobile/features/study_session/domain/entities/answer_choice.dart';
-import 'package:mobile/features/study_session/domain/entities/question.dart';
-import 'package:mobile/features/study_session/domain/entities/question_feedback.dart';
-import 'package:mobile/features/study_session/domain/entities/question_review_item.dart';
-import 'package:mobile/features/study_session/domain/entities/question_type.dart';
 import 'package:mobile/features/study_session/domain/entities/session_config.dart';
-import 'package:mobile/features/study_session/domain/entities/session_result.dart';
-import 'package:mobile/features/study_session/domain/entities/study_session_bundle.dart';
 import 'package:mobile/features/study_session/domain/repositories/study_session_repository.dart';
 import 'package:mobile/features/notifications/data/repositories/notifications_repository_impl.dart';
 import 'package:mobile/features/notifications/domain/repositories/notifications_repository.dart';
@@ -41,6 +34,10 @@ import 'package:mocktail/mocktail.dart';
 
 import '../../features/curriculum/curriculum_test_tree.dart';
 import '../../features/subscription/access_overrides.dart';
+
+import 'package:mobile/core/network/paginated.dart';
+
+import '../../features/study_session/study_session_fixtures.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 
@@ -85,19 +82,13 @@ const _user = AuthUser(
 );
 const _session = AuthSession(user: _user, accessToken: 'access-token-1');
 
-final _bundle = StudySessionBundle(
-  sessionId: 'sess-1',
-  questions: [
-    Question(
-      id: 'q1',
-      text: 'What adjusts under a flexible budget?',
-      type: QuestionType.multipleChoiceSingle,
-      choices: const [
-        AnswerChoice(id: 'q1-a', text: 'Variable costs', order: 0),
-        AnswerChoice(id: 'q1-b', text: 'Nothing', order: 1),
-      ],
-    ),
-  ],
+const _question = FakeQuestion(
+  id: 'q1',
+  text: 'What adjusts under a flexible budget?',
+  choices: {'q1-a': 'Variable costs', 'q1-b': 'Nothing'},
+  correctChoiceId: 'q1-a',
+  explanation: 'Flexible budgets adjust variable costs to volume.',
+  timeSpentSeconds: 0,
 );
 
 void main() {
@@ -107,7 +98,6 @@ void main() {
         topicId: 'x',
         topicName: 'x',
         questionCount: 10,
-        order: QuestionOrder.original,
         feedbackMode: FeedbackMode.immediate,
       ),
     );
@@ -161,60 +151,34 @@ void main() {
       );
 
       final studySessionRepository = MockStudySessionRepository();
-      when(() => studySessionRepository.startSession(any()))
-          .thenAnswer((_) async => Result.success(_bundle));
+      final answered = _question.answer('q1-a', addSeconds: 12);
+      when(() => studySessionRepository.startSession(any())).thenAnswer(
+        (_) async => Result.success(fakeSession(questions: const [_question])),
+      );
       when(
-        () => studySessionRepository.submitAnswer(
+        () => studySessionRepository.answerQuestion(
           sessionId: any(named: 'sessionId'),
           questionId: any(named: 'questionId'),
-          selectedChoiceId: any(named: 'selectedChoiceId'),
+          choiceId: any(named: 'choiceId'),
+          timeSpentSeconds: any(named: 'timeSpentSeconds'),
         ),
       ).thenAnswer(
-        (_) async => const Result.success(
-          QuestionFeedback(
-            questionId: 'q1',
-            isCorrect: true,
-            correctChoiceId: 'q1-a',
-            explanation: 'Flexible budgets adjust variable costs to volume.',
-          ),
+        (_) async => Result.success(fakeSession(questions: [answered])),
+      );
+      when(() => studySessionRepository.completeSession(any())).thenAnswer(
+        (_) async => Result.success(
+          fakeSession(status: 'COMPLETED', questions: [answered]),
         ),
       );
       when(
-        () => studySessionRepository.submitSession(
-          sessionId: any(named: 'sessionId'),
-          answers: any(named: 'answers'),
-          totalTime: any(named: 'totalTime'),
+        () => studySessionRepository.listSessions(
+          page: any(named: 'page'),
+          limit: any(named: 'limit'),
         ),
       ).thenAnswer(
         (_) async => const Result.success(
-          SessionResult(
-            sessionId: 'sess-1',
-            totalQuestions: 1,
-            answered: 1,
-            unanswered: 0,
-            correct: 1,
-            incorrect: 0,
-            scorePercent: 100,
-            totalTime: Duration(seconds: 12),
-            averageTimePerQuestion: Duration(seconds: 12),
-          ),
+          Paginated(items: [], page: 1, limit: 20, total: 0, totalPages: 0),
         ),
-      );
-      when(() => studySessionRepository.getReview(any())).thenAnswer(
-        (_) async => const Result.success([
-          QuestionReviewItem(
-            questionId: 'q1',
-            questionText: 'What adjusts under a flexible budget?',
-            choices: [
-              AnswerChoice(id: 'q1-a', text: 'Variable costs', order: 0),
-              AnswerChoice(id: 'q1-b', text: 'Nothing', order: 1),
-            ],
-            correctChoiceId: 'q1-a',
-            selectedChoiceId: 'q1-a',
-            isCorrect: true,
-            explanation: 'Flexible budgets adjust variable costs to volume.',
-          ),
-        ]),
       );
       final notificationsRepository = MockNotificationsRepository();
       when(() => notificationsRepository.getUnreadCount())

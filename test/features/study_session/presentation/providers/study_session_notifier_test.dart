@@ -1,51 +1,25 @@
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/error/app_failure.dart';
 import 'package:mobile/core/error/result.dart';
 import 'package:mobile/features/study_session/data/repositories/study_session_repository_impl.dart';
-import 'package:mobile/features/study_session/domain/entities/answer_choice.dart';
-import 'package:mobile/features/study_session/domain/entities/question.dart';
-import 'package:mobile/features/study_session/domain/entities/question_feedback.dart';
-import 'package:mobile/features/study_session/domain/entities/question_review_item.dart';
-import 'package:mobile/features/study_session/domain/entities/question_type.dart';
 import 'package:mobile/features/study_session/domain/entities/session_config.dart';
-import 'package:mobile/features/study_session/domain/entities/session_result.dart';
-import 'package:mobile/features/study_session/domain/entities/study_session_bundle.dart';
+import 'package:mobile/features/study_session/domain/entities/study_session.dart';
 import 'package:mobile/features/study_session/domain/repositories/study_session_repository.dart';
 import 'package:mobile/features/study_session/presentation/providers/study_session_notifier.dart';
 import 'package:mobile/features/study_session/presentation/providers/study_session_state.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../study_session_fixtures.dart';
+
 class MockStudySessionRepository extends Mock
     implements StudySessionRepository {}
-
-Question _question(String id) => Question(
-  id: id,
-  text: 'Question $id',
-  type: QuestionType.multipleChoiceSingle,
-  choices: [
-    AnswerChoice(id: '$id-a', text: 'A', order: 0),
-    AnswerChoice(id: '$id-b', text: 'B', order: 1),
-  ],
-);
-
-final _twoQuestionBundle = StudySessionBundle(
-  sessionId: 'sess-1',
-  questions: [_question('q1'), _question('q2')],
-);
-
-const _config = SessionConfig(
-  topicId: 'topic-1',
-  topicName: 'Flexible Budget',
-  questionCount: 2,
-  order: QuestionOrder.original,
-  feedbackMode: FeedbackMode.immediate,
-);
 
 void main() {
   late MockStudySessionRepository repository;
   late ProviderContainer container;
+
+  setUpAll(() => registerFallbackValue(testSessionConfig));
 
   setUp(() {
     repository = MockStudySessionRepository();
@@ -53,532 +27,263 @@ void main() {
       overrides: [studySessionRepositoryProvider.overrideWithValue(repository)],
     );
     addTearDown(container.dispose);
-    registerFallbackValue(<String, String?>{});
-    registerFallbackValue(_config);
-    registerFallbackValue(Duration.zero);
   });
 
   StudySessionNotifier notifier() =>
       container.read(studySessionNotifierProvider.notifier);
+
   StudySessionState state() => container.read(studySessionNotifierProvider);
 
-  group('startSession', () {
-    test('initial state is Initial', () {
-      expect(state(), isA<StudySessionInitial>());
-    });
+  StudySessionActive active() => state() as StudySessionActive;
 
-    test('success transitions Initial -> Loading -> Active with the first question ready', () async {
-      when(() => repository.startSession(_config))
-          .thenAnswer((_) async => Result.success(_twoQuestionBundle));
+  void stubAnswer(String questionId, Result<StudySession> response) {
+    when(
+      () => repository.answerQuestion(
+        sessionId: 'sess-1',
+        questionId: questionId,
+        choiceId: any(named: 'choiceId'),
+        timeSpentSeconds: any(named: 'timeSpentSeconds'),
+      ),
+    ).thenAnswer((_) async => response);
+  }
 
-      final future = notifier().startSession(_config);
-      expect(state(), isA<StudySessionLoading>());
-      await future;
-
-      final active = state();
-      expect(active, isA<StudySessionActive>());
-      active as StudySessionActive;
-      expect(active.sessionId, 'sess-1');
-      expect(active.totalQuestions, 2);
-      expect(active.currentIndex, 0);
-      expect(active.phase, QuestionPhase.ready);
-      expect(active.elapsed, Duration.zero);
-      expect(active.isPaused, isFalse);
-    });
-
-    test(
-      'failure transitions to Error with no active snapshot to retry from',
-      () async {
-        when(() => repository.startSession(_config))
-            .thenAnswer((_) async => const Result.failure(NetworkFailure()));
-
-        await notifier().startSession(_config);
-
-        final error = state();
-        expect(error, isA<StudySessionError>());
-        expect((error as StudySessionError).retryFrom, isNull);
-      },
+  Future<void> start({
+    FeedbackMode mode = FeedbackMode.immediate,
+    StudySession? session,
+  }) async {
+    when(() => repository.startSession(any())).thenAnswer(
+      (_) async => Result.success(session ?? fakeSession(feedbackMode: mode)),
     );
+    await notifier().startSession(
+      SessionConfig(
+        topicId: 'topic-1',
+        topicName: 'Flexible Budget',
+        questionCount: 2,
+        feedbackMode: mode,
+      ),
+    );
+  }
 
-    test('retry after a start failure calls startSession again with the same config', () async {
-      var callCount = 0;
-      when(() => repository.startSession(_config)).thenAnswer((_) async {
-        callCount++;
-        if (callCount == 1) return const Result.failure(NetworkFailure());
-        return Result.success(_twoQuestionBundle);
-      });
+  group('starting', () {
+    test('a started session becomes active on its first question', () async {
+      await start();
 
-      await notifier().startSession(_config);
+      expect(active().currentQuestion.text, 'What is 2 + 2?');
+      expect(active().answeredCount, 0);
+      expect(active().phase, QuestionPhase.ready);
+    });
+
+    test('a failed start becomes an error that retry repeats', () async {
+      when(() => repository.startSession(any()))
+          .thenAnswer((_) async => const Result.failure(NetworkFailure()));
+      await notifier().startSession(testSessionConfig);
       expect(state(), isA<StudySessionError>());
 
+      when(() => repository.startSession(any()))
+          .thenAnswer((_) async => Result.success(fakeSession()));
       await notifier().retry();
 
       expect(state(), isA<StudySessionActive>());
-      expect(callCount, 2);
     });
+  });
 
-    test('an empty question list is treated as an error, not a crash-prone Active session', () async {
-      when(() => repository.startSession(_config)).thenAnswer(
-        (_) async => const Result.success(
-          StudySessionBundle(sessionId: 'sess-empty', questions: []),
-        ),
+  group('immediate mode', () {
+    test('a pick is a draft until checked; checking reveals it', () async {
+      await start();
+      stubAnswer(
+        'q1',
+        Result.success(fakeSession(questions: [q1.answer('q1-a'), q2])),
       );
 
-      await notifier().startSession(_config);
-
-      expect(state(), isNot(isA<StudySessionActive>()));
-      expect(state(), isA<StudySessionError>());
-    });
-  });
-
-  group('answer selection and navigation', () {
-    Future<void> start() async {
-      when(() => repository.startSession(_config))
-          .thenAnswer((_) async => Result.success(_twoQuestionBundle));
-      await notifier().startSession(_config);
-    }
-
-    test(
-      'selecting a choice records it and moves phase to answering',
-      () async {
-        await start();
-
-        notifier().selectChoice('q1-b');
-
-        final active = state() as StudySessionActive;
-        expect(active.selectedChoiceForCurrent, 'q1-b');
-        expect(active.phase, QuestionPhase.answering);
-      },
-    );
-
-    test(
-      'changing the selection before submission overwrites the previous choice',
-      () async {
-        await start();
-
-        notifier().selectChoice('q1-a');
-        notifier().selectChoice('q1-b');
-
-        expect(
-          (state() as StudySessionActive).selectedChoiceForCurrent,
-          'q1-b',
-        );
-      },
-    );
-
-    test('next/previous move between questions and are bounded', () async {
-      await start();
-
-      notifier().previousQuestion(); // no-op: already first
-      expect((state() as StudySessionActive).currentIndex, 0);
-
-      notifier().nextQuestion();
-      expect((state() as StudySessionActive).currentIndex, 1);
-
-      notifier().nextQuestion(); // no-op: already last
-      expect((state() as StudySessionActive).currentIndex, 1);
-
-      notifier().previousQuestion();
-      expect((state() as StudySessionActive).currentIndex, 0);
-    });
-
-    test(
-      'navigating to a question already answered restores the answering phase',
-      () async {
-        await start();
-        notifier().selectChoice('q1-a');
-        notifier().nextQuestion();
-        expect((state() as StudySessionActive).phase, QuestionPhase.ready);
-
-        notifier().previousQuestion();
-        expect((state() as StudySessionActive).phase, QuestionPhase.answering);
-        expect(
-          (state() as StudySessionActive).selectedChoiceForCurrent,
-          'q1-a',
-        );
-      },
-    );
-
-    test('goToQuestion jumps directly to an arbitrary index', () async {
-      await start();
-
-      notifier().goToQuestion(1);
-
-      expect((state() as StudySessionActive).currentIndex, 1);
-    });
-
-    test(
-      'answeredCount/unansweredCount reflect selections made so far',
-      () async {
-        await start();
-        expect((state() as StudySessionActive).answeredCount, 0);
-
-        notifier().selectChoice('q1-a');
-
-        final active = state() as StudySessionActive;
-        expect(active.answeredCount, 1);
-        expect(active.unansweredCount, 1);
-      },
-    );
-  });
-
-  group('immediate feedback mode', () {
-    Future<void> start() async {
-      when(() => repository.startSession(_config))
-          .thenAnswer((_) async => Result.success(_twoQuestionBundle));
-      await notifier().startSession(_config);
-    }
-
-    test('submitting an answer with nothing selected is a no-op', () async {
-      await start();
-
-      final submitted = await notifier().submitCurrentAnswer();
-
-      expect(submitted, isFalse);
+      await notifier().selectChoice('q1-a');
+      expect(active().phase, QuestionPhase.answering);
       verifyNever(
-        () => repository.submitAnswer(
+        () => repository.answerQuestion(
           sessionId: any(named: 'sessionId'),
           questionId: any(named: 'questionId'),
-          selectedChoiceId: any(named: 'selectedChoiceId'),
+          choiceId: any(named: 'choiceId'),
+          timeSpentSeconds: any(named: 'timeSpentSeconds'),
         ),
       );
+
+      expect(await notifier().submitCurrentAnswer(), isTrue);
+      expect(active().phase, QuestionPhase.feedback);
+      expect(active().feedbackForCurrent!.isCorrect, isFalse);
+      expect(active().feedbackForCurrent!.correctChoiceId, 'q1-b');
+      expect(active().answeredCount, 1);
     });
 
-    test('success reveals correctness, correct choice, and explanation, and locks the question', () async {
+    test('a revealed question is locked against new picks', () async {
+      await start(session: fakeSession(questions: [q1.answer('q1-a'), q2]));
+      notifier().goToQuestion(0);
+
+      expect(await notifier().selectChoice('q1-b'), isFalse);
+      expect(active().selectedChoiceForCurrent, 'q1-a');
+    });
+
+    test('a failed check keeps the draft so it can be retried', () async {
       await start();
-      notifier().selectChoice('q1-b');
+      stubAnswer('q1', const Result.failure(NetworkFailure()));
 
-      when(
-        () => repository.submitAnswer(
-          sessionId: 'sess-1',
-          questionId: 'q1',
-          selectedChoiceId: 'q1-b',
-        ),
-      ).thenAnswer(
-        (_) async => const Result.success(
-          QuestionFeedback(
-            questionId: 'q1',
-            isCorrect: false,
-            correctChoiceId: 'q1-a',
-            explanation: 'A is correct because...',
-          ),
-        ),
-      );
+      await notifier().selectChoice('q1-a');
+      expect(await notifier().submitCurrentAnswer(), isFalse);
 
-      final submitted = await notifier().submitCurrentAnswer();
-
-      expect(submitted, isTrue);
-      final active = state() as StudySessionActive;
-      expect(active.phase, QuestionPhase.feedback);
-      expect(active.answeredQuestionIds, contains('q1'));
-      expect(active.feedbackForCurrent?.correctChoiceId, 'q1-a');
-    });
-
-    test('selecting a different choice after feedback is shown is ignored (locked)', () async {
-      await start();
-      notifier().selectChoice('q1-b');
-      when(
-        () => repository.submitAnswer(
-          sessionId: 'sess-1',
-          questionId: 'q1',
-          selectedChoiceId: 'q1-b',
-        ),
-      ).thenAnswer(
-        (_) async => const Result.success(
-          QuestionFeedback(
-            questionId: 'q1',
-            isCorrect: false,
-            correctChoiceId: 'q1-a',
-          ),
-        ),
-      );
-      await notifier().submitCurrentAnswer();
-
-      notifier().selectChoice('q1-a');
-
-      expect((state() as StudySessionActive).selectedChoiceForCurrent, 'q1-b');
-    });
-
-    test('failure leaves the question editable and returns false', () async {
-      await start();
-      notifier().selectChoice('q1-b');
-      when(
-        () => repository.submitAnswer(
-          sessionId: 'sess-1',
-          questionId: 'q1',
-          selectedChoiceId: 'q1-b',
-        ),
-      ).thenAnswer((_) async => const Result.failure(NetworkFailure()));
-
-      final submitted = await notifier().submitCurrentAnswer();
-
-      expect(submitted, isFalse);
-      final active = state() as StudySessionActive;
-      expect(active.phase, QuestionPhase.answering);
-      expect(active.isSubmittingAnswer, isFalse);
-    });
-
-    test('is a no-op in "feedback at end" mode', () async {
-      when(() => repository.startSession(any(that: isA<SessionConfig>())))
-          .thenAnswer((_) async => Result.success(_twoQuestionBundle));
-      final atEndConfig = SessionConfig(
-        topicId: _config.topicId,
-        topicName: _config.topicName,
-        questionCount: _config.questionCount,
-        order: _config.order,
-        feedbackMode: FeedbackMode.atEnd,
-      );
-      await notifier().startSession(atEndConfig);
-      notifier().selectChoice('q1-a');
-
-      final submitted = await notifier().submitCurrentAnswer();
-
-      expect(submitted, isFalse);
-      verifyNever(
-        () => repository.submitAnswer(
-          sessionId: any(named: 'sessionId'),
-          questionId: any(named: 'questionId'),
-          selectedChoiceId: any(named: 'selectedChoiceId'),
-        ),
-      );
+      expect(active().selectedChoiceForCurrent, 'q1-a');
+      expect(active().isSubmittingAnswer, isFalse);
     });
   });
 
-  group('count-up timer', () {
-    testWidgets('increments elapsed by one second at a time while active', (
-      tester,
-    ) async {
-      // A trivial tree so the test binding has something to draw — pump()
-      // just drives the fake clock these Timer.periodic calls run on.
-      await tester.pumpWidget(const SizedBox.shrink());
-      when(() => repository.startSession(_config))
-          .thenAnswer((_) async => Result.success(_twoQuestionBundle));
-      await notifier().startSession(_config);
-
-      await tester.pump(const Duration(seconds: 3));
-
-      expect(
-        (state() as StudySessionActive).elapsed,
-        const Duration(seconds: 3),
+  group('"at the end" mode', () {
+    test('every pick is sent at once and stays hidden', () async {
+      await start(mode: FeedbackMode.atEnd);
+      stubAnswer(
+        'q1',
+        Result.success(
+          fakeSession(
+            feedbackMode: FeedbackMode.atEnd,
+            questions: [q1.answer('q1-a'), q2],
+          ),
+        ),
       );
 
-      // Cancel the still-running Timer.periodic before the test ends —
-      // flutter_test's pending-timer invariant check runs before
-      // addTearDown(container.dispose) gets a chance to.
-      notifier().reset();
+      expect(await notifier().selectChoice('q1-a'), isTrue);
+
+      expect(active().answeredCount, 1);
+      expect(active().feedbackForCurrent, isNull);
+      expect(active().phase, QuestionPhase.answering);
     });
 
-    testWidgets('togglePause stops the timer from advancing', (tester) async {
-      await tester.pumpWidget(const SizedBox.shrink());
-      when(() => repository.startSession(_config))
-          .thenAnswer((_) async => Result.success(_twoQuestionBundle));
-      await notifier().startSession(_config);
-      await tester.pump(const Duration(seconds: 2));
+    test('a pick that fails to save falls back to the saved answer', () async {
+      await start(mode: FeedbackMode.atEnd);
+      stubAnswer('q1', const Result.failure(NetworkFailure()));
 
-      notifier().togglePause();
-      expect((state() as StudySessionActive).isPaused, isTrue);
+      expect(await notifier().selectChoice('q1-a'), isFalse);
 
-      await tester.pump(const Duration(seconds: 5));
-      expect(
-        (state() as StudySessionActive).elapsed,
-        const Duration(seconds: 2),
-      );
-
-      notifier().togglePause();
-      await tester.pump(const Duration(seconds: 1));
-      expect(
-        (state() as StudySessionActive).elapsed,
-        const Duration(seconds: 3),
-      );
-
-      notifier().reset();
+      expect(active().selectedChoiceForCurrent, isNull);
     });
   });
 
-  group('submitSession', () {
-    Future<void> start() async {
-      when(() => repository.startSession(_config))
-          .thenAnswer((_) async => Result.success(_twoQuestionBundle));
-      await notifier().startSession(_config);
-    }
-
-    test(
-      'sends the full answers map including nulls for unanswered questions',
-      () async {
-        await start();
-        notifier().selectChoice('q1-a'); // q2 left unanswered
-
-        when(
-          () => repository.submitSession(
-            sessionId: 'sess-1',
-            answers: {'q1': 'q1-a', 'q2': null},
-            totalTime: any(named: 'totalTime'),
-          ),
-        ).thenAnswer(
-          (_) async => const Result.success(
-            SessionResult(
-              sessionId: 'sess-1',
-              totalQuestions: 2,
-              answered: 1,
-              unanswered: 1,
-              correct: 1,
-              incorrect: 0,
-              scorePercent: 50,
-              totalTime: Duration(seconds: 10),
-              averageTimePerQuestion: Duration(seconds: 5),
-            ),
-          ),
-        );
-        when(
-          () => repository.getReview('sess-1'),
-        ).thenAnswer((_) async => const Result.success(<QuestionReviewItem>[]));
-
-        await notifier().submitSession();
-
-        expect(state(), isA<StudySessionCompleted>());
-        verify(
-          () => repository.submitSession(
-            sessionId: 'sess-1',
-            answers: {'q1': 'q1-a', 'q2': null},
-            totalTime: any(named: 'totalTime'),
-          ),
-        ).called(1);
-      },
+  test('flags go to the server', () async {
+    await start();
+    when(
+      () => repository.flagQuestion(
+        sessionId: 'sess-1',
+        questionId: 'q1',
+        flagged: true,
+      ),
+    ).thenAnswer(
+      (_) async => Result.success(fakeSession(questions: [q1.flag(true), q2])),
     );
 
-    test('success fetches the review and lands on Completed with the authoritative result', () async {
-      await start();
+    expect(await notifier().toggleFlag(), isTrue);
+    expect(active().isCurrentFlagged, isTrue);
+  });
 
+  group('pause', () {
+    test('pausing and resuming call the server', () async {
+      await start();
       when(
-        () => repository.submitSession(
-          sessionId: any(named: 'sessionId'),
-          answers: any(named: 'answers'),
-          totalTime: any(named: 'totalTime'),
+        () => repository.pauseSession('sess-1'),
+      ).thenAnswer((_) async => Result.success(fakeSession(status: 'PAUSED')));
+      when(() => repository.resumeSession('sess-1'))
+          .thenAnswer((_) async => Result.success(fakeSession()));
+
+      await notifier().togglePause();
+      expect(active().isPaused, isTrue);
+      verify(() => repository.pauseSession('sess-1')).called(1);
+
+      expect(await notifier().togglePause(), isTrue);
+      expect(active().isPaused, isFalse);
+    });
+
+    test('a failed resume stays paused', () async {
+      await start();
+      when(
+        () => repository.pauseSession('sess-1'),
+      ).thenAnswer((_) async => Result.success(fakeSession(status: 'PAUSED')));
+      when(() => repository.resumeSession('sess-1'))
+          .thenAnswer((_) async => const Result.failure(NetworkFailure()));
+
+      await notifier().togglePause();
+      expect(await notifier().togglePause(), isFalse);
+      expect(active().isPaused, isTrue);
+    });
+  });
+
+  group('completing', () {
+    test('lands on the result and review from the completed session', () async {
+      await start(session: fakeSession(questions: [q1.answer('q1-b'), q2]));
+      when(() => repository.completeSession('sess-1')).thenAnswer(
+        (_) async => Result.success(
+          fakeSession(status: 'COMPLETED', questions: [q1.answer('q1-b'), q2]),
         ),
-      ).thenAnswer(
-        (_) async => const Result.success(
-          SessionResult(
-            sessionId: 'sess-1',
-            totalQuestions: 2,
-            answered: 0,
-            unanswered: 2,
-            correct: 0,
-            incorrect: 0,
-            scorePercent: 0,
-            totalTime: Duration.zero,
-            averageTimePerQuestion: Duration.zero,
-          ),
-        ),
-      );
-      when(() => repository.getReview('sess-1')).thenAnswer(
-        (_) async => const Result.success([
-          QuestionReviewItem(
-            questionId: 'q1',
-            questionText: 'Question q1',
-            choices: [],
-            correctChoiceId: 'q1-a',
-            selectedChoiceId: null,
-            isCorrect: false,
-          ),
-        ]),
       );
 
       await notifier().submitSession();
 
       final completed = state() as StudySessionCompleted;
-      expect(completed.result.totalQuestions, 2);
-      expect(completed.review, hasLength(1));
+      expect(completed.result.correct, 1);
+      expect(completed.result.unanswered, 1);
+      expect(completed.result.scorePercent, 50);
+      expect(completed.review, hasLength(2));
     });
 
-    test(
-      'a submit failure preserves every answer already made for retry',
-      () async {
-        await start();
-        notifier().selectChoice('q1-a');
-
-        when(
-          () => repository.submitSession(
-            sessionId: any(named: 'sessionId'),
-            answers: any(named: 'answers'),
-            totalTime: any(named: 'totalTime'),
-          ),
-        ).thenAnswer((_) async => const Result.failure(NetworkFailure()));
-
-        await notifier().submitSession();
-
-        final error = state() as StudySessionError;
-        expect(error.failure, isA<NetworkFailure>());
-        expect(error.retryFrom, isNotNull);
-        expect(error.retryFrom!.selectedAnswers['q1'], 'q1-a');
-      },
-    );
-
-    test('retry after a submit failure restores the preserved session instead of restarting it', () async {
+    test('a failure keeps the session to retry from', () async {
       await start();
-      notifier().selectChoice('q1-a');
-      when(
-        () => repository.submitSession(
-          sessionId: any(named: 'sessionId'),
-          answers: any(named: 'answers'),
-          totalTime: any(named: 'totalTime'),
-        ),
-      ).thenAnswer((_) async => const Result.failure(NetworkFailure()));
-      await notifier().submitSession();
-
-      await notifier().retry();
-
-      final active = state() as StudySessionActive;
-      expect(active.sessionId, 'sess-1');
-      expect(active.selectedAnswers['q1'], 'q1-a');
-      // startSession was only ever called once — the original start — not
-      // again by retry(), which should restore the preserved snapshot
-      // instead of restarting the session from scratch.
-      verify(() => repository.startSession(any(that: isA<SessionConfig>())))
-          .called(1);
-    });
-
-    test('a review-fetch failure still shows results rather than treating the submit as failed', () async {
-      await start();
-
-      when(
-        () => repository.submitSession(
-          sessionId: any(named: 'sessionId'),
-          answers: any(named: 'answers'),
-          totalTime: any(named: 'totalTime'),
-        ),
-      ).thenAnswer(
-        (_) async => const Result.success(
-          SessionResult(
-            sessionId: 'sess-1',
-            totalQuestions: 2,
-            answered: 0,
-            unanswered: 2,
-            correct: 0,
-            incorrect: 0,
-            scorePercent: 0,
-            totalTime: Duration.zero,
-            averageTimePerQuestion: Duration.zero,
-          ),
-        ),
-      );
-      when(() => repository.getReview('sess-1'))
+      when(() => repository.completeSession('sess-1'))
           .thenAnswer((_) async => const Result.failure(NetworkFailure()));
 
       await notifier().submitSession();
+      expect((state() as StudySessionError).retryFrom, isNotNull);
 
-      final completed = state() as StudySessionCompleted;
-      expect(completed.review, isEmpty);
+      await notifier().retry();
+      expect(state(), isA<StudySessionActive>());
     });
   });
 
-  test('reset returns to Initial', () async {
-    when(() => repository.startSession(_config))
-        .thenAnswer((_) async => Result.success(_twoQuestionBundle));
-    await notifier().startSession(_config);
-    expect(state(), isA<StudySessionActive>());
+  group('reopening', () {
+    test(
+      'a paused session is resumed and opens on its first open question',
+      () async {
+        when(() => repository.getSession('sess-1')).thenAnswer(
+          (_) async => Result.success(
+            fakeSession(status: 'PAUSED', questions: [q1.answer('q1-a'), q2]),
+          ),
+        );
+        when(() => repository.resumeSession('sess-1')).thenAnswer(
+          (_) async =>
+              Result.success(fakeSession(questions: [q1.answer('q1-a'), q2])),
+        );
 
-    notifier().reset();
+        await notifier().reopenSession('sess-1');
 
-    expect(state(), isA<StudySessionInitial>());
+        verify(() => repository.resumeSession('sess-1')).called(1);
+        expect(active().currentQuestion.id, 'q2');
+        expect(active().config.topicName, 'Flexible Budget');
+      },
+    );
+
+    test('a completed session opens on its result', () async {
+      when(() => repository.getSession('sess-1')).thenAnswer(
+        (_) async => Result.success(fakeSession(status: 'COMPLETED')),
+      );
+
+      await notifier().reopenSession('sess-1');
+
+      expect(state(), isA<StudySessionCompleted>());
+    });
+  });
+
+  test('navigation moves between questions within bounds', () async {
+    await start();
+
+    notifier().previousQuestion();
+    expect(active().currentIndex, 0);
+    notifier().nextQuestion();
+    expect(active().currentIndex, 1);
+    notifier().nextQuestion();
+    expect(active().currentIndex, 1);
+    notifier().goToQuestion(0);
+    expect(active().currentIndex, 0);
   });
 }

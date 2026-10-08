@@ -283,12 +283,6 @@
   "@studySessionSetupTopicLabel": {},
   "studySessionSetupQuestionCountLabel": "Number of questions",
   "@studySessionSetupQuestionCountLabel": {},
-  "studySessionSetupOrderLabel": "Question order",
-  "@studySessionSetupOrderLabel": {},
-  "studySessionSetupOrderOriginal": "Original",
-  "@studySessionSetupOrderOriginal": {},
-  "studySessionSetupOrderRandom": "Random",
-  "@studySessionSetupOrderRandom": {},
   "studySessionSetupFeedbackModeLabel": "Feedback mode",
   "@studySessionSetupFeedbackModeLabel": {},
   "studySessionSetupFeedbackImmediate": "Immediate",
@@ -361,7 +355,7 @@
   "@studySessionAnswerSubmitFailed": {},
   "studySessionLeaveSessionTitle": "Leave this session?",
   "@studySessionLeaveSessionTitle": {},
-  "studySessionLeaveSessionMessage": "Your progress in this study session will be lost if you leave now.",
+  "studySessionLeaveSessionMessage": "Your answers are saved. You can continue this session later from Home.",
   "@studySessionLeaveSessionMessage": {},
   "studySessionLeaveSessionConfirm": "Leave",
   "@studySessionLeaveSessionConfirm": {},
@@ -1191,5 +1185,32 @@
   "noAccessMessage": "Get a plan to start study sessions and exams.",
   "@noAccessMessage": {},
   "noAccessSeePlans": "See plans",
-  "@noAccessSeePlans": {}
+  "@noAccessSeePlans": {},
+  "studySessionNoQuestions": "No questions are available for this topic yet.",
+  "@studySessionNoQuestions": {},
+  "studySessionReviewCorrectAnswerHidden": "Not shown for skipped questions.",
+  "@studySessionReviewCorrectAnswerHidden": {},
+  "studySessionFlag": "Flag question",
+  "@studySessionFlag": {},
+  "studySessionUnflag": "Remove flag",
+  "@studySessionUnflag": {},
+  "studySessionAnswerNotSaved": "Your answer couldn't be saved. Check your connection and try again.",
+  "@studySessionAnswerNotSaved": {},
+  "studySessionActionFailed": "That didn't go through. Check your connection and try again.",
+  "@studySessionActionFailed": {},
+  "homeContinueStudyTitle": "Continue studying",
+  "@homeContinueStudyTitle": {},
+  "homeContinueStudySubtitle": "{count, plural, =1{1 question} other{{count} questions}} · {topic}",
+  "@homeContinueStudySubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "topic": {
+        "type": "String"
+      }
+    }
+  },
+  "homeContinueStudyAction": "Continue",
+  "@homeContinueStudyAction": {}
 }

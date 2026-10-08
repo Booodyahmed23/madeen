@@ -3,41 +3,44 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../../domain/entities/session_config.dart';
-import '../models/question_feedback_model.dart';
-import '../models/question_review_item_model.dart';
-import '../models/session_result_model.dart';
-import '../models/study_session_bundle_model.dart';
 import 'study_session_mock_data_source.dart';
 import 'study_session_remote_data_source.dart';
 
-/// Shape both [StudySessionRemoteDataSource] (real backend, once it exists
-/// — see STUDY_SESSION_API_REQUIREMENTS.md) and [StudySessionMockDataSource]
-/// (local sample questions, used until then) implement.
-/// StudySessionRepositoryImpl depends on this interface, not on either
-/// concrete implementation — mirrors curriculum_data_source.dart exactly.
-abstract class StudySessionDataSource {
-  Future<StudySessionBundleModel> startSession(SessionConfig config);
+typedef Json = Map<String, dynamic>;
 
-  Future<QuestionFeedbackModel> submitAnswer({
+/// The study endpoints (contract §A3), returning the API's raw JSON — the
+/// Session object, or a `{ data, meta }` page for [listSessions]. Both
+/// [StudySessionRemoteDataSource] and [StudySessionMockDataSource] produce
+/// the same JSON, so one parser (data/models) serves both.
+abstract class StudySessionDataSource {
+  Future<Json> startSession(SessionConfig config);
+
+  Future<Json> getSession(String sessionId);
+
+  Future<Json> listSessions({required int page, required int limit});
+
+  Future<Json> answerQuestion({
     required String sessionId,
     required String questionId,
-    String? selectedChoiceId,
+    required String choiceId,
+    int? timeSpentSeconds,
   });
 
-  Future<SessionResultModel> submitSession({
+  Future<Json> flagQuestion({
     required String sessionId,
-    required Map<String, String?> answers,
-    required Duration totalTime,
+    required String questionId,
+    required bool flagged,
   });
 
-  Future<List<QuestionReviewItemModel>> getReview(String sessionId);
+  Future<Json> pauseSession(String sessionId);
+
+  Future<Json> resumeSession(String sessionId);
+
+  Future<Json> completeSession(String sessionId);
 }
 
-/// The single switch between real and sample Study Session data. See
-/// AppConfig.isStudySessionApiAvailable and
-/// STUDY_SESSION_API_REQUIREMENTS.md — flipping the
-/// `STUDY_SESSION_API_AVAILABLE` dart-define is the only change needed once
-/// the backend ships these endpoints.
+/// The single switch between the real API and sample data — the
+/// `STUDY_SESSION_API_AVAILABLE` dart-define (see AppConfig).
 final studySessionDataSourceProvider = Provider<StudySessionDataSource>((ref) {
   if (AppConfig.isStudySessionApiAvailable) {
     return StudySessionRemoteDataSource(ref.watch(apiClientProvider));
