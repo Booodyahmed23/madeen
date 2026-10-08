@@ -265,6 +265,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       child: MadeenDividedList(
                         children: [
                           _SettingsRow(
+                            icon: Icons.workspace_premium_outlined,
+                            title: l10n.profilePlans,
+                            onTap: () => context.push(AppRoutes.plans),
+                          ),
+                          _SettingsRow(
                             icon: Icons.notifications_outlined,
                             title: l10n.profileNotificationSettings,
                             onTap: () =>

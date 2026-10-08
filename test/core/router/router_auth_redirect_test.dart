@@ -21,6 +21,8 @@ import 'package:mobile/features/performance/domain/entities/performance_overview
 import 'package:mobile/features/performance/domain/repositories/performance_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../features/subscription/access_overrides.dart';
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 class MockNotificationsRepository extends Mock
@@ -73,7 +75,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [authRepositoryProvider.overrideWithValue(repository)],
+          overrides: [
+            ...accessOverrides(),
+            authRepositoryProvider.overrideWithValue(repository),
+          ],
           child: const App(),
         ),
       );
@@ -121,6 +126,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            ...accessOverrides(),
             authRepositoryProvider.overrideWithValue(repository),
             notificationsRepositoryProvider.overrideWithValue(
               notificationsRepository,

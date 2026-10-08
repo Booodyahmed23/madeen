@@ -28,6 +28,8 @@ import 'package:mobile/features/performance/domain/entities/performance_filter.d
 import 'package:mobile/features/performance/domain/entities/performance_overview.dart';
 import 'package:mobile/features/performance/domain/repositories/performance_repository.dart';
 
+import 'features/subscription/access_overrides.dart';
+
 class _FakeAuthRepository extends Mock implements AuthRepository {}
 
 class _FakeNotificationsRepository extends Mock
@@ -112,6 +114,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ...accessOverrides(),
           authRepositoryProvider.overrideWithValue(repository),
           notificationsRepositoryProvider.overrideWithValue(
             notificationsRepository,

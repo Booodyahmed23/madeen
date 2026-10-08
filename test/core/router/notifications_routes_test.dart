@@ -18,6 +18,8 @@ import 'package:mobile/features/notifications/domain/entities/study_reminder_dra
 import 'package:mobile/features/notifications/domain/repositories/notifications_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../features/subscription/access_overrides.dart';
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 class MockNotificationsRepository extends Mock
@@ -75,6 +77,7 @@ Widget _app({
   return ProviderScope(
     retry: appRetryPolicy,
     overrides: [
+      ...accessOverrides(),
       authRepositoryProvider.overrideWithValue(authRepository),
       notificationsRepositoryProvider.overrideWithValue(
         notificationsRepository,

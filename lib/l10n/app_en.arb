@@ -1133,5 +1133,63 @@
   "examPostReviewFilterUnanswered": "Unanswered",
   "@examPostReviewFilterUnanswered": {},
   "examPostReviewEmptyFilter": "No questions in this view.",
-  "@examPostReviewEmptyFilter": {}
+  "@examPostReviewEmptyFilter": {},
+  "profilePlans": "Plans & access",
+  "@profilePlans": {},
+  "plansTitle": "Plans & access",
+  "@plansTitle": {},
+  "plansYourAccessSection": "Your access",
+  "@plansYourAccessSection": {},
+  "plansNoAccess": "You don't have an active plan yet. Use a coupon on a plan below to get access.",
+  "@plansNoAccess": {},
+  "plansAccessUntil": "Access until {date}",
+  "@plansAccessUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "plansAvailableSection": "Plans",
+  "@plansAvailableSection": {},
+  "plansNone": "No plans are available right now.",
+  "@plansNone": {},
+  "plansDuration": "{count, plural, =1{1 day} other{{count} days}}",
+  "@plansDuration": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "plansFree": "Free",
+  "@plansFree": {},
+  "plansUseCoupon": "Use a coupon",
+  "@plansUseCoupon": {},
+  "plansPaymentComingSoon": "Online payment is coming soon. For now, plans are activated with a coupon.",
+  "@plansPaymentComingSoon": {},
+  "plansHasAccess": "You have access",
+  "@plansHasAccess": {},
+  "couponCodeLabel": "Coupon code",
+  "@couponCodeLabel": {},
+  "couponCodeLength": "Enter 3 to 40 characters",
+  "@couponCodeLength": {},
+  "couponCheck": "Check coupon",
+  "@couponCheck": {},
+  "couponPrice": "Price",
+  "@couponPrice": {},
+  "couponDiscount": "Discount",
+  "@couponDiscount": {},
+  "couponFinalPrice": "You pay",
+  "@couponFinalPrice": {},
+  "couponActivate": "Activate plan",
+  "@couponActivate": {},
+  "couponActivated": "Plan activated",
+  "@couponActivated": {},
+  "noAccessTitle": "You need an active plan",
+  "@noAccessTitle": {},
+  "noAccessMessage": "Get a plan to start study sessions and exams.",
+  "@noAccessMessage": {},
+  "noAccessSeePlans": "See plans",
+  "@noAccessSeePlans": {}
 }

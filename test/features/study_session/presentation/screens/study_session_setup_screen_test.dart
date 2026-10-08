@@ -125,7 +125,10 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Start session'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Network error. Please try again.'), findsOneWidget);
+    expect(
+      find.text("Can't reach the server. Check your connection and try again."),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
@@ -145,4 +148,43 @@ void main() {
       );
     },
   );
+
+  testWidgets('without an active plan, Start is replaced by a way to Plans', (
+    tester,
+  ) async {
+    useTallSurface(tester);
+    final repository = MockStudySessionRepository();
+
+    await tester.pumpWidget(
+      wrapStudySessionScreen(repository: repository, hasAccess: false),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('You need an active plan'), findsOneWidget);
+    expect(find.text('See plans'), findsOneWidget);
+    final start = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Start session'),
+    );
+    expect(start.onPressed, isNull);
+  });
+
+  testWidgets('a 403 "no access" on start shows the plans notice', (
+    tester,
+  ) async {
+    useTallSurface(tester);
+    final repository = MockStudySessionRepository();
+    when(() => repository.startSession(any())).thenAnswer(
+      (_) async => const Result.failure(
+        NoAccessFailure('An active subscription is required'),
+      ),
+    );
+
+    await tester.pumpWidget(wrapStudySessionScreen(repository: repository));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start session'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('You need an active plan'), findsOneWidget);
+    expect(find.text('An active subscription is required'), findsNothing);
+  });
 }

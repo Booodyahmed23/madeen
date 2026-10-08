@@ -27,6 +27,8 @@ import 'package:mobile/features/notifications/data/repositories/notifications_re
 import 'package:mobile/features/notifications/domain/repositories/notifications_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../features/subscription/access_overrides.dart';
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 class MockPerformanceRepository extends Mock implements PerformanceRepository {}
@@ -151,6 +153,7 @@ Widget _app({
   return ProviderScope(
     retry: appRetryPolicy,
     overrides: [
+      ...accessOverrides(),
       authRepositoryProvider.overrideWithValue(authRepository),
       performanceRepositoryProvider.overrideWithValue(performanceRepository),
       aiAnalysisRepositoryProvider.overrideWithValue(aiAnalysisRepository),

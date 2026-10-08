@@ -31,6 +31,7 @@ import 'package:mobile/features/study_session/domain/repositories/study_session_
 import 'package:mocktail/mocktail.dart';
 
 import '../features/performance/local_attempt_test_data.dart';
+import '../features/subscription/access_overrides.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 
@@ -155,6 +156,7 @@ void main() {
 
     final container = ProviderContainer(
       overrides: [
+        ...accessOverrides(),
         authRepositoryProvider.overrideWithValue(auth),
         studySessionRepositoryProvider.overrideWithValue(study),
         examRepositoryProvider.overrideWithValue(exam),

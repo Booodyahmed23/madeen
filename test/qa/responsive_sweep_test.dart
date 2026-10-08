@@ -30,6 +30,8 @@ import 'package:mobile/features/study_session/presentation/screens/study_session
 import 'package:mobile/l10n/generated/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../features/subscription/access_overrides.dart';
+
 /// Phase 15 QA: every major screen, rendered with its default (mock-backed)
 /// data at the smallest supported phone width with enlarged text, in both
 /// languages and both themes, must lay out without overflow or other
@@ -102,6 +104,7 @@ Future<List<String>> _render(
   try {
     await tester.pumpWidget(
       ProviderScope(
+        overrides: [...accessOverrides()],
         retry: appRetryPolicy,
         child: MaterialApp(
           theme: AppTheme.madeenLight,

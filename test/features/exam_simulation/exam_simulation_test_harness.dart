@@ -16,6 +16,8 @@ import 'package:mobile/features/exam_simulation/presentation/screens/exam_setup_
 import 'package:mobile/features/exam_simulation/presentation/screens/exam_submission_review_screen.dart';
 import 'package:mobile/l10n/generated/app_localizations.dart';
 
+import '../subscription/access_overrides.dart';
+
 /// The Setup and Active-exam screens are tall — a plain (non-`.builder`)
 /// `ListView` only *mounts* elements near the viewport + cache extent, so
 /// `find.text()` genuinely finds nothing for content pushed below the fold
@@ -81,6 +83,7 @@ Widget wrapExamScreen({
 
   return ProviderScope(
     overrides: [
+      ...accessOverrides(),
       examRepositoryProvider.overrideWithValue(examRepository),
       curriculumRepositoryProvider.overrideWithValue(curriculumRepository),
     ],

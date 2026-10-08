@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/error/app_failure.dart';
+import '../../../../core/error/failure_messages.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/sample_data_banner.dart';
@@ -19,6 +21,8 @@ import '../../../curriculum/domain/entities/program.dart';
 import '../../../curriculum/domain/entities/sub_unit.dart';
 import '../../../curriculum/domain/entities/unit.dart';
 import '../../../curriculum/presentation/providers/curriculum_providers.dart';
+import '../../../subscription/presentation/providers/subscription_providers.dart';
+import '../../../subscription/presentation/widgets/no_access_notice.dart';
 import '../../domain/entities/exam_config.dart';
 import '../providers/exam_notifier.dart';
 import '../providers/exam_state.dart';
@@ -46,8 +50,22 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
 
   /// `null` = the whole Unit.
   SubUnit? _selectedSubUnit;
+
+  /// Whether the default program (the student's first entitlement) has
+  /// been preselected — done once, so it never overrides the user's pick.
+  bool _defaultProgramApplied = false;
   int _questionCount = kExamQuestionCountOptions.first;
   ExamQuestionOrder _order = ExamQuestionOrder.original;
+
+  void _applyDefaultProgram(List<Program> programs) {
+    if (_defaultProgramApplied || _selectedProgram != null) return;
+    final defaultId = ref.watch(defaultProgramIdProvider).value;
+    if (defaultId == null) return;
+    _defaultProgramApplied = true;
+    for (final program in programs) {
+      if (program.id == defaultId) _selectedProgram = program;
+    }
+  }
 
   void _start() {
     final program = _selectedProgram;
@@ -87,7 +105,13 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
 
     final isLoading = state is ExamLoading;
     final failure = state is ExamError ? state.failure : null;
-    final canStart = _selectedProgram != null && _selectedPart != null;
+    // Known "no plan" (or the server said so on start) blocks starting; while
+    // access is loading or couldn't be checked, the server stays the judge.
+    final noAccess =
+        ref.watch(hasAccessProvider).value == false ||
+        failure is NoAccessFailure;
+    final canStart =
+        !noAccess && _selectedProgram != null && _selectedPart != null;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.examSetupTitle)),
@@ -112,25 +136,29 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
                   programsAsync.when(
                     loading: () => const LinearProgressIndicator(),
                     error: (error, _) => Text(l10n.examGenericError),
-                    data: (programs) => DropdownButtonFormField<Program>(
-                      initialValue: _selectedProgram,
-                      hint: Text(l10n.examSetupSelectProgramHint),
-                      isExpanded: true,
-                      items: programs
-                          .map(
-                            (program) => DropdownMenuItem(
-                              value: program,
-                              child: Text(program.name),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (program) => setState(() {
-                        _selectedProgram = program;
-                        _selectedPart = null;
-                        _selectedUnit = null;
-                        _selectedSubUnit = null;
-                      }),
-                    ),
+                    data: (programs) {
+                      _applyDefaultProgram(programs);
+                      return DropdownButtonFormField<Program>(
+                        key: ValueKey('exam-program-${_selectedProgram?.id}'),
+                        initialValue: _selectedProgram,
+                        hint: Text(l10n.examSetupSelectProgramHint),
+                        isExpanded: true,
+                        items: programs
+                            .map(
+                              (program) => DropdownMenuItem(
+                                value: program,
+                                child: Text(program.name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (program) => setState(() {
+                          _selectedProgram = program;
+                          _selectedPart = null;
+                          _selectedUnit = null;
+                          _selectedSubUnit = null;
+                        }),
+                      );
+                    },
                   ),
                   const SizedBox(height: MadeenSpace.xl),
 
@@ -221,10 +249,13 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
                     body: l10n.examSetupRulesBody,
                   ),
 
-                  if (failure != null) ...[
+                  if (noAccess) ...[
+                    const SizedBox(height: MadeenSpace.md),
+                    const NoAccessNotice(),
+                  ] else if (failure != null) ...[
                     const SizedBox(height: 16),
                     Text(
-                      failure.message,
+                      localizedFailureMessage(l10n, failure),
                       style: MadeenType.bodySm.copyWith(
                         color: MadeenTokens.of(context).error,
                       ),

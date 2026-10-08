@@ -6,9 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/error/app_failure.dart';
+import '../../../../core/error/failure_messages.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/sample_data_banner.dart';
+import '../../../subscription/presentation/providers/subscription_providers.dart';
+import '../../../subscription/presentation/widgets/no_access_notice.dart';
 import '../../domain/entities/session_config.dart';
 import '../providers/study_session_notifier.dart';
 import '../providers/study_session_state.dart';
@@ -70,6 +74,11 @@ class _StudySessionSetupScreenState
 
     final isLoading = state is StudySessionLoading;
     final failure = state is StudySessionError ? state.failure : null;
+    // Known "no plan" (or the server said so on start) blocks starting; while
+    // access is loading or couldn't be checked, the server stays the judge.
+    final noAccess =
+        ref.watch(hasAccessProvider).value == false ||
+        failure is NoAccessFailure;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.studySessionSetupTitle)),
@@ -154,10 +163,13 @@ class _StudySessionSetupScreenState
                     onTap: () =>
                         setState(() => _feedbackMode = FeedbackMode.atEnd),
                   ),
-                  if (failure != null) ...[
+                  if (noAccess) ...[
+                    const SizedBox(height: MadeenSpace.md),
+                    const NoAccessNotice(),
+                  ] else if (failure != null) ...[
                     const SizedBox(height: MadeenSpace.md),
                     Text(
-                      failure.message,
+                      localizedFailureMessage(l10n, failure),
                       style: MadeenType.bodySm.copyWith(
                         color: MadeenTokens.of(context).error,
                       ),
@@ -171,7 +183,7 @@ class _StudySessionSetupScreenState
                 width: double.infinity,
                 height: MadeenSize.buttonHeight,
                 child: FilledButton(
-                  onPressed: isLoading ? null : _start,
+                  onPressed: isLoading || noAccess ? null : _start,
                   child: isLoading
                       ? Row(
                           mainAxisSize: MainAxisSize.min,

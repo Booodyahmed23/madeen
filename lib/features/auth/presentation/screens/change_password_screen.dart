@@ -59,9 +59,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     switch (result) {
       case Success():
         final l10n = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.changePasswordSuccess)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.changePasswordSuccess)));
         context.pop();
       case Failure(:final failure):
         setState(() {

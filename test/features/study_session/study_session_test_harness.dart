@@ -13,6 +13,8 @@ import 'package:mobile/features/study_session/presentation/screens/study_session
 import 'package:mobile/features/study_session/presentation/screens/submission_review_screen.dart';
 import 'package:mobile/l10n/generated/app_localizations.dart';
 
+import '../subscription/access_overrides.dart';
+
 /// The Setup and Active-session screens are tall (a scrollable question
 /// list, or every setup control at once) — the default 800x600 test
 /// surface forces content below the fold, where a plain `ListView` (not
@@ -38,6 +40,7 @@ Widget wrapStudySessionScreen({
   String topicId = 'topic-1',
   String? topicName = 'Flexible Budget',
   Locale? locale,
+  bool hasAccess = true,
 }) {
   final router = GoRouter(
     initialLocation: initialLocation,
@@ -74,7 +77,10 @@ Widget wrapStudySessionScreen({
   );
 
   return ProviderScope(
-    overrides: [studySessionRepositoryProvider.overrideWithValue(repository)],
+    overrides: [
+      ...accessOverrides(hasAccess: hasAccess),
+      studySessionRepositoryProvider.overrideWithValue(repository),
+    ],
     retry: appRetryPolicy,
     child: MaterialApp.router(
       routerConfig: router,

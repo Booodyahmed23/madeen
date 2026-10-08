@@ -32,6 +32,8 @@ import 'package:mobile/features/performance/domain/entities/performance_overview
 import 'package:mobile/features/performance/domain/repositories/performance_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../features/subscription/access_overrides.dart';
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 class MockNotificationsRepository extends Mock
@@ -125,6 +127,7 @@ Widget _app({
   ).thenAnswer((_) async => Result.success(_insufficientAnalysis));
 
   final overrides = [
+    ...accessOverrides(),
     authRepositoryProvider.overrideWithValue(authRepository),
     notificationsRepositoryProvider.overrideWithValue(notificationsRepository),
     performanceRepositoryProvider.overrideWithValue(performanceRepository),

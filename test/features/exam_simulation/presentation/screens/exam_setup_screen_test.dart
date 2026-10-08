@@ -58,6 +58,25 @@ void main() {
     );
   });
 
+  testWidgets('preselects the program the student has access to', (
+    tester,
+  ) async {
+    useTallSurface(tester);
+
+    await tester.pumpWidget(
+      wrapExamScreen(
+        examRepository: MockExamRepository(),
+        curriculumRepository: curriculumRepository,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final picker = tester.widget<DropdownButton<Program>>(
+      find.byType(DropdownButton<Program>),
+    );
+    expect(picker.value?.id, 'program-cma');
+  });
+
   testWidgets(
     'lets the student pick a program, part and question count — the time '
     'limit follows from the count',
@@ -239,7 +258,10 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Start exam'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Network error. Please try again.'), findsOneWidget);
+    expect(
+      find.text("Can't reach the server. Check your connection and try again."),
+      findsOneWidget,
+    );
   });
 
   testWidgets(

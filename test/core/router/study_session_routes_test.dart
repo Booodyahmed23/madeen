@@ -40,6 +40,7 @@ import 'package:mobile/features/performance/domain/repositories/performance_repo
 import 'package:mocktail/mocktail.dart';
 
 import '../../features/curriculum/curriculum_test_tree.dart';
+import '../../features/subscription/access_overrides.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 
@@ -246,6 +247,7 @@ void main() {
         ProviderScope(
           retry: appRetryPolicy,
           overrides: [
+            ...accessOverrides(),
             authRepositoryProvider.overrideWithValue(authRepository),
             curriculumRepositoryProvider.overrideWithValue(
               curriculumRepository,
@@ -339,6 +341,7 @@ void main() {
         ProviderScope(
           retry: appRetryPolicy,
           overrides: [
+            ...accessOverrides(),
             authRepositoryProvider.overrideWithValue(authRepository),
             studySessionRepositoryProvider.overrideWithValue(
               studySessionRepository,

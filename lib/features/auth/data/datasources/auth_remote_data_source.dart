@@ -11,7 +11,10 @@ const _refreshCookieName = 'refresh_token';
 /// `Set-Cookie: refresh_token=…` header — the API never puts the refresh
 /// token in the body, and returns no user (contract §A1).
 class AuthTokensModel {
-  const AuthTokensModel({required this.accessToken, required this.refreshToken});
+  const AuthTokensModel({
+    required this.accessToken,
+    required this.refreshToken,
+  });
 
   factory AuthTokensModel.fromResponse(dynamic data, Headers headers) {
     final refreshToken = refreshTokenFromCookies(headers['set-cookie']);

@@ -13,6 +13,8 @@ import 'package:mobile/features/auth/presentation/providers/auth_notifier.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../features/subscription/access_overrides.dart';
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 const _user = AuthUser(
@@ -38,7 +40,10 @@ Future<ProviderContainer> _pumpApp(
   addTearDown(tester.view.reset);
 
   final container = ProviderContainer(
-    overrides: [authRepositoryProvider.overrideWithValue(repository)],
+    overrides: [
+      ...accessOverrides(),
+      authRepositoryProvider.overrideWithValue(repository),
+    ],
   );
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -187,7 +192,10 @@ void main() {
 
     testWidgets('renders in Arabic', (tester) async {
       final container = ProviderContainer(
-        overrides: [authRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          ...accessOverrides(),
+          authRepositoryProvider.overrideWithValue(repository),
+        ],
       );
       addTearDown(container.dispose);
       await container

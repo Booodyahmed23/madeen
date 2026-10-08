@@ -14,6 +14,7 @@ class AuthUser {
   final String email;
   final String firstName;
   final String lastName;
+
   /// `USER` | `ADMIN`.
   final String role;
 

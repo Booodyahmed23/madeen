@@ -40,6 +40,7 @@ import '../../features/performance/presentation/screens/attempt_history_screen.d
 import '../../features/performance/presentation/screens/performance_overview_screen.dart';
 import '../../features/performance/presentation/screens/topic_performance_screen.dart';
 import '../../features/study_session/presentation/screens/active_study_session_screen.dart';
+import '../../features/subscription/presentation/screens/plans_screen.dart';
 import '../../features/study_session/presentation/screens/question_review_screen.dart';
 import '../../features/study_session/presentation/screens/study_session_results_screen.dart';
 import '../../features/study_session/presentation/screens/study_session_setup_screen.dart';
@@ -57,6 +58,7 @@ abstract final class AppRoutes {
   static const profile = '/profile';
   static const changePassword = '/profile/change-password';
   static const deleteAccount = '/profile/delete-account';
+  static const plans = '/plans';
   static const login = '/login';
   static const register = '/register';
   static const forgotPassword = '/forgot-password';
@@ -229,6 +231,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.deleteAccount,
         builder: (context, state) => const DeleteAccountScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.plans,
+        builder: (context, state) => const PlansScreen(),
       ),
       GoRoute(
         path: AppRoutes.login,

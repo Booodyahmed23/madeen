@@ -13,6 +13,8 @@ import 'package:mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:mobile/core/error/result.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../features/subscription/access_overrides.dart';
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 const _user = AuthUser(
@@ -97,7 +99,10 @@ void main() {
     when(() => auth.getCurrentUser())
         .thenAnswer((_) async => const Result.success(_user));
     final container = ProviderContainer(
-      overrides: [authRepositoryProvider.overrideWithValue(auth)],
+      overrides: [
+        ...accessOverrides(),
+        authRepositoryProvider.overrideWithValue(auth),
+      ],
     );
     addTearDown(container.dispose);
     await container.read(localeProvider.notifier).setLocale(locale);
