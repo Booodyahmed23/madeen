@@ -13,7 +13,10 @@ consume them.
 
 This replaces the old `*_API_REQUIREMENTS.md` files at the repo root, which
 were written before the backend existed. Delete them once the integration
-lands.
+lands, except the AI and course ones, which stay as V2 input.
+
+**Scope: V1.** AI analysis, AI tutor and courses/video lessons are V2 and are
+not part of this contract (see "Out of scope — V2").
 
 ---
 
@@ -359,12 +362,9 @@ stays on its mock data source until its flag is turned on.
 
 | Module | Flag | Mobile changes when it ships |
 |---|---|---|
-| Notifications | `NOTIFICATIONS_API_AVAILABLE` | List is paginated `{ data, meta }` (was a plain array); `PATCH /notifications/:id/read` has **no body**; `read-all` returns `{ updated }`; `DELETE` returns `204`; preferences `PATCH` may send only the changed keys; the item gains `readAt`; `action` may be `null` and uses the new type names below |
+| Notifications | `NOTIFICATIONS_API_AVAILABLE` | List is paginated `{ data, meta }` (was a plain array); `PATCH /notifications/:id/read` has **no body**; `read-all` returns `{ updated }`; `DELETE` returns `204`; preferences `PATCH` may send only the changed keys; the item gains `readAt`; `action` may be `null` and uses the new type names below; the `AI_RECOMMENDATION` type and the `aiRecommendations` preference are removed (V2), so preferences have 7 keys and the AI toggle is hidden |
 | Study reminders | (same flag) | Same fields as today plus `updatedAt`; handle `400 REMINDER_LIMIT_REACHED` (max 20) and `INVALID_CUSTOM_DAYS` |
 | Push devices | new `PUSH_API_AVAILABLE` | `POST /devices { token, platform: IOS\|ANDROID, locale }` after login; `DELETE /devices/:token` on logout |
-| AI analysis | `AI_ANALYSIS_API_AVAILABLE` | Field renames below; attempt insight URL splits into `/ai-analysis/study-sessions/:id` and `/ai-analysis/exam-attempts/:id`; `attemptType` filter becomes `type=STUDY\|EXAM`; handle `409 ATTEMPT_NOT_FINISHED` and `503 AI_UNAVAILABLE` |
-| AI tutor | `AI_TUTOR_API_AVAILABLE` | Response `timestamp` becomes `createdAt`; `history` is capped at the last 20 messages and `content` at 2000 characters; optional `topicId`; handle `409 EXAM_IN_PROGRESS`, `429 AI_QUOTA_EXCEEDED`, `503 AI_UNAVAILABLE`; implement `RealAiProvider` |
-| Courses | `COURSE_API_AVAILABLE` | `GET /courses` is paginated **without** sections, and the tree comes from `GET /courses/:id/tree`; there is no `locale` parameter; `thumbnailAssetId` becomes `thumbnailUrl`; lessons lose `videoAssetId` and the playback URL comes from `GET …/lessons/:lessonId/playback` (`403` means no access); enrollment becomes **progress** (below) |
 
 Notification `action.type` renames:
 
@@ -375,29 +375,23 @@ Notification `action.type` renames:
 | `openPerformanceOverview` | `OPEN_PERFORMANCE` |
 | `openTopicPerformance` | `OPEN_TOPIC_PERFORMANCE` |
 | `openAttemptDetails` | `OPEN_ATTEMPT` (+ `attemptType: STUDY\|EXAM`) |
-| `openAiAnalysisOverview`, `openAiAnalysisTopic` | `OPEN_AI_ANALYSIS` (`targetId` = topic id or null) |
-| `openAiAnalysisAttempt` | `OPEN_AI_ANALYSIS` is not used for attempts; use `OPEN_ATTEMPT` |
+| `openAiAnalysisOverview`, `openAiAnalysisTopic`, `openAiAnalysisAttempt` | removed (V2) |
 | `none` | `action: null` |
 | — | `OPEN_PLANS` (new) |
 
-AI analysis renames:
+## Out of scope — V2
 
-| Old field | New field |
-|---|---|
-| `metadata.{scope,status,generatedAt,basedOnAttemptCount}` | flattened to the top level |
-| `overallSummary` | `summary` |
-| `recurringPatterns` | `patterns` |
-| `topicInsights` | `topics` |
-| `supportingMetricPercent`, `accuracyPercent` | `accuracy` |
-| `answered` | `total` |
+**AI analysis, AI tutor and courses/video lessons are V2.** The backend will
+not build them in V1, and the mobile app does not integrate them now:
 
-Course enrollment becomes progress:
-
-| Old | New |
-|---|---|
-| `GET /courses/:id/enrollment` | `GET /courses/:id/progress` → `{ courseId, completedLessonIds, lastLessonId, updatedAt }` |
-| `PUT …/enrollment/lessons/:lessonId/completed` | `PATCH /courses/:id/progress/lessons/:lessonId { completed }` |
-| `PUT …/enrollment/last-accessed-lesson` `{ lessonId }` | `PATCH /courses/:id/progress { lastLessonId }` |
+- Hide their entry points in V1 builds: the Home AI teaser card, the AI
+  analysis screens, the AI tutor screen and the Courses screens. Keep the
+  code and its mock data sources for V2. Do not ship mock AI or course
+  content to real users.
+- Keep `AI_ANALYSIS_API_AVAILABLE`, `AI_TUTOR_API_AVAILABLE` and
+  `COURSE_API_AVAILABLE` off.
+- The old `AI_ANALYSIS_*`, `AI_TUTOR_*` and `COURSE_API_REQUIREMENTS.md`
+  files are kept only as V2 input; they are not a contract.
 
 ---
 
@@ -410,7 +404,7 @@ Course enrollment becomes progress:
 5. A3 study sessions.
 6. A4 exams.
 7. A5 performance (replaces local attempt recording).
-8. Part B modules, as each backend module ships.
+8. Part B modules (notifications, reminders, push), as each backend module ships.
 
 For each step: switch the module's `*_API_AVAILABLE` flag on in `env/dev.json`,
 update `test/features/<module>` fixtures to the shapes above, and run against
