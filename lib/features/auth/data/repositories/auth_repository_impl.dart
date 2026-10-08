@@ -22,13 +22,13 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String password,
   }) => _guard(() async {
-    final response = await _remote.register(
+    final tokens = await _remote.register(
       firstName: firstName,
       lastName: lastName,
       email: email,
       password: password,
     );
-    return _persistAndMap(response);
+    return _persistAndLoadUser(tokens);
   });
 
   @override
@@ -36,18 +36,41 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String password,
   }) => _guard(() async {
-    final response = await _remote.login(email: email, password: password);
-    return _persistAndMap(response);
+    final tokens = await _remote.login(email: email, password: password);
+    return _persistAndLoadUser(tokens);
   });
 
   @override
   Future<AuthSession?> restoreSession() async {
+    final tokens = await _refreshStoredSession();
+    if (tokens == null) return null;
+    try {
+      return await _loadUser(tokens.accessToken);
+    } on ApiException catch (error) {
+      // The refresh worked (and the rotated token is saved), so the session
+      // is fine — only the profile couldn't be loaded right now.
+      throw mapApiExceptionToFailure(error);
+    }
+  }
+
+  @override
+  Future<String?> refreshAccessToken() async {
+    final tokens = await _refreshStoredSession();
+    return tokens?.accessToken;
+  }
+
+  /// Exchanges the stored refresh token for new tokens and saves the rotated
+  /// one. `null` when there's nothing stored or the server rejected it (the
+  /// stored token is then cleared); throws an `AppFailure` when the server
+  /// couldn't be asked at all, keeping the stored token.
+  Future<AuthTokensModel?> _refreshStoredSession() async {
     final storedRefreshToken = await _secureStorage.readRefreshToken();
     if (storedRefreshToken == null) return null;
 
     try {
-      final response = await _remote.refresh(storedRefreshToken);
-      return await _persistAndMap(response);
+      final tokens = await _remote.refresh(storedRefreshToken);
+      await _secureStorage.saveRefreshToken(tokens.refreshToken);
+      return tokens;
     } on ApiException catch (error) {
       if (!_isSessionRejected(error)) {
         // Offline / server error / rate limited — the stored session may
@@ -65,6 +88,7 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<void> logout() async {
     final storedRefreshToken = await _secureStorage.readRefreshToken();
     await _secureStorage.clear();
+    if (storedRefreshToken == null) return;
     try {
       await _remote.logout(storedRefreshToken);
     } on ApiException {
@@ -74,7 +98,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   /// A 4xx answer to a refresh is the server's verdict on the token itself
-  /// (401 expired/revoked/reused, 400 malformed). Everything else — no
+  /// (401 invalid/expired/revoked/reused, 400 missing). Everything else — no
   /// response (statusCode 0), 408, 429, 5xx — says nothing about the token.
   static bool _isSessionRejected(ApiException error) {
     final status = error.statusCode;
@@ -83,7 +107,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Result<void>> forgotPassword(String email) => _guard(() async {
-    await _remote.forgotPassword(email);
+    await _remote.requestPasswordReset(email);
   });
 
   @override
@@ -91,7 +115,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required String token,
     required String newPassword,
   }) => _guard(() async {
-    await _remote.resetPassword(token: token, newPassword: newPassword);
+    await _remote.confirmPasswordReset(token: token, newPassword: newPassword);
+    // The server revoked every session, this device's included.
+    await _secureStorage.clear();
   });
 
   @override
@@ -112,18 +138,33 @@ class AuthRepositoryImpl implements AuthRepository {
     return _toAuthUser(profile);
   });
 
-  Future<AuthSession> _persistAndMap(AuthResponseModel response) async {
-    await _secureStorage.saveRefreshToken(response.refreshToken);
-    return AuthSession(
-      user: AuthUser(
-        id: response.userId,
-        email: response.email,
-        firstName: response.firstName,
-        lastName: response.lastName,
-        roles: response.roles,
-      ),
-      accessToken: response.accessToken,
+  @override
+  Future<Result<String>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) => _guard(() async {
+    final tokens = await _remote.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
     );
+    await _secureStorage.saveRefreshToken(tokens.refreshToken);
+    return tokens.accessToken;
+  });
+
+  @override
+  Future<Result<void>> deleteAccount(String password) => _guard(() async {
+    await _remote.deleteAccount(password);
+    await _secureStorage.clear();
+  });
+
+  Future<AuthSession> _persistAndLoadUser(AuthTokensModel tokens) async {
+    await _secureStorage.saveRefreshToken(tokens.refreshToken);
+    return _loadUser(tokens.accessToken);
+  }
+
+  Future<AuthSession> _loadUser(String accessToken) async {
+    final profile = await _remote.getCurrentUser(accessToken: accessToken);
+    return AuthSession(user: _toAuthUser(profile), accessToken: accessToken);
   }
 
   AuthUser _toAuthUser(UserProfileModel profile) => AuthUser(
@@ -131,7 +172,7 @@ class AuthRepositoryImpl implements AuthRepository {
     email: profile.email,
     firstName: profile.firstName,
     lastName: profile.lastName,
-    roles: profile.roles,
+    role: profile.role,
   );
 
   Future<Result<T>> _guard<T>(Future<T> Function() action) async {

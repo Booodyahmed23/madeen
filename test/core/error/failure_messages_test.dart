@@ -19,6 +19,9 @@ void main() {
       ServerFailure('Too many requests', statusCode: 429),
       ServerFailure('Internal server error', statusCode: 500),
       ServerFailure('Not found', statusCode: 404),
+      NoAccessFailure(),
+      NotFoundFailure(),
+      ValidationFailure('Coupon is invalid', code: 'COUPON_INVALID'),
       UnknownFailure(),
     ];
     for (final failure in failures) {
@@ -49,6 +52,44 @@ void main() {
     expect(
       localizedFailureMessage(en, const ServerFailure('x', statusCode: 404)),
       en.errorUnknown,
+    );
+  });
+
+  test('a known API error code wins over the failure type', () {
+    expect(
+      localizedFailureMessage(
+        en,
+        const ValidationFailure('x', code: 'WRONG_CURRENT_PASSWORD'),
+      ),
+      en.errorWrongCurrentPassword,
+    );
+    expect(
+      localizedFailureMessage(
+        en,
+        const ForbiddenFailure('x', 'ADMIN_SELF_DELETE'),
+      ),
+      en.errorAdminSelfDelete,
+    );
+  });
+
+  test('an unknown code falls back to the generic message for its type', () {
+    expect(
+      localizedFailureMessage(
+        en,
+        const ValidationFailure('x', code: 'SOMETHING_NEW'),
+      ),
+      en.errorValidation,
+    );
+  });
+
+  test('no-access 403 has its own message', () {
+    expect(
+      localizedFailureMessage(en, const NoAccessFailure()),
+      en.errorNoAccess,
+    );
+    expect(
+      localizedFailureMessage(en, const ForbiddenFailure()),
+      en.errorForbidden,
     );
   });
 }

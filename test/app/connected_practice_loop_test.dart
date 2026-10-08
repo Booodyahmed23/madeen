@@ -66,7 +66,7 @@ void main() {
           email: 'a@example.com',
           firstName: 'Ada',
           lastName: 'User',
-          roles: ['USER'],
+          role: 'USER',
         ),
         accessToken: 'token',
       ),

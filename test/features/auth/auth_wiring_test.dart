@@ -21,17 +21,18 @@ class _FakeBackend implements HttpClientAdapter {
   var acceptedAccessToken = 'access-1';
   var refreshCount = 0;
 
-  Map<String, dynamic> _authBody(String access, String refresh) => {
-    'user': {
-      'id': 'user-1',
-      'email': 'jane@example.com',
-      'firstName': 'Jane',
-      'lastName': 'Doe',
-      'roles': ['USER'],
-    },
-    'accessToken': access,
-    'refreshToken': refresh,
+  static const _me = {
+    'id': 'user-1',
+    'email': 'jane@example.com',
+    'firstName': 'Jane',
+    'lastName': 'Doe',
+    'role': 'USER',
   };
+
+  /// Token responses carry only the access token in the body; the refresh
+  /// token travels in a `Set-Cookie` header (contract §A1).
+  (int, Object, String?) _tokens(String access, String refresh) =>
+      (200, {'accessToken': access}, 'refresh_token=$refresh; Path=/api/v1/auth; HttpOnly');
 
   @override
   Future<ResponseBody> fetch(
@@ -43,24 +44,30 @@ class _FakeBackend implements HttpClientAdapter {
     calls.add('${options.method} $path');
     final auth = options.headers['Authorization'];
 
-    final (int status, Object body) = switch (path) {
-      '/auth/login' => (200, _authBody('access-1', 'refresh-1')),
+    final (int status, Object body, String? cookie) = switch (path) {
+      '/auth/login' => _tokens('access-1', 'refresh-1'),
       '/auth/refresh' => () {
         refreshCount++;
         acceptedAccessToken = 'access-${refreshCount + 1}';
-        return (200, _authBody(acceptedAccessToken, 'refresh-2'));
+        return _tokens(acceptedAccessToken, 'refresh-2');
       }(),
-      '/users/me' when auth == 'Bearer $acceptedAccessToken' => (
+      '/auth/me' when auth == 'Bearer $acceptedAccessToken' => (
         200,
-        (_authBody('', '')['user'] as Map<String, dynamic>),
+        _me,
+        null,
       ),
-      _ => (401, {'statusCode': 401, 'message': 'Invalid or expired token'}),
+      _ => (
+        401,
+        {'statusCode': 401, 'message': 'Invalid or expired token'},
+        null,
+      ),
     };
     return ResponseBody.fromString(
       jsonEncode(body),
       status,
       headers: {
         Headers.contentTypeHeader: [Headers.jsonContentType],
+        'set-cookie': ?(cookie == null ? null : [cookie]),
       },
     );
   }
@@ -141,9 +148,10 @@ void main() {
     expect(backend.refreshCount, 1);
     expect(backend.calls, [
       'POST /auth/login',
-      'GET /users/me',
+      'GET /auth/me',
+      'GET /auth/me',
       'POST /auth/refresh',
-      'GET /users/me',
+      'GET /auth/me',
     ]);
     final state = container.read(authNotifierProvider) as AuthAuthenticated;
     expect(state.accessToken, 'access-2');

@@ -5,6 +5,10 @@
 /// asset — these are non-secret, public API endpoints, so baking them in at
 /// build time (per environment) is both simpler and more idiomatic Flutter
 /// than shipping a dotenv file inside the app package.
+library;
+
+import 'package:flutter/foundation.dart';
+
 class AppConfig {
   const AppConfig._();
 
@@ -13,10 +17,27 @@ class AppConfig {
     defaultValue: 'development',
   );
 
-  static const String apiBaseUrl = String.fromEnvironment(
+  static const String _apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:3000/api/v1',
+    defaultValue: 'http://localhost:3001/api/v1',
   );
+
+  /// The API base URL. A `localhost` URL (the dev default) is rewritten to
+  /// `10.0.2.2` on Android, where the emulator reaches the host machine
+  /// through that address rather than its own loopback (contract §G1).
+  static String get apiBaseUrl => resolveApiBaseUrl(_apiBaseUrl);
+
+  @visibleForTesting
+  static String resolveApiBaseUrl(
+    String configured, {
+    TargetPlatform? platform,
+  }) {
+    final uri = Uri.parse(configured);
+    final isAndroid = (platform ?? defaultTargetPlatform) ==
+        TargetPlatform.android;
+    if (!isAndroid || uri.host != 'localhost') return configured;
+    return uri.replace(host: '10.0.2.2').toString();
+  }
 
   static bool get isProduction => environmentName == 'production';
 
@@ -104,5 +125,12 @@ class AppConfig {
   /// needs to start branching on this; no other mobile code changes.
   static const bool isCourseApiAvailable = bool.fromEnvironment(
     'COURSE_API_AVAILABLE',
+  );
+
+  /// Whether the backend exposes push device registration (`POST /devices`,
+  /// `POST /devices/unregister` — contract Part B). Off until the API
+  /// ships it.
+  static const bool isPushApiAvailable = bool.fromEnvironment(
+    'PUSH_API_AVAILABLE',
   );
 }

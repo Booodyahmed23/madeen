@@ -194,18 +194,35 @@ void main() {
     expect(session.accessToken, 'old-token');
   });
 
-  test(
-    'never refreshes for /auth/* endpoints (prevents refresh loops)',
-    () async {
+  for (final path in [
+    '/auth/login',
+    '/auth/register',
+    '/auth/refresh',
+    '/auth/logout',
+    '/auth/password-reset/request',
+    '/auth/password-reset/confirm',
+  ]) {
+    test('never refreshes for $path (prevents refresh loops)', () async {
       final adapter = _FakeAdapter((_) async => 401);
 
       await expectLater(
-        buildDio(adapter).post<dynamic>('/auth/refresh'),
+        buildDio(adapter).post<dynamic>(path),
         throwsA(isA<DioException>()),
       );
       expect(session.refreshCalls, 0);
-    },
-  );
+    });
+  }
+
+  for (final path in ['/auth/me', '/auth/change-password']) {
+    test('refreshes and retries $path like any other call', () async {
+      final adapter = _FakeAdapter(acceptsOnlyNewToken);
+
+      final response = await buildDio(adapter).post<dynamic>(path);
+
+      expect(response.statusCode, 200);
+      expect(session.refreshCalls, 1);
+    });
+  }
 
   test('non-401 errors pass straight through', () async {
     final adapter = _FakeAdapter((_) async => 500);

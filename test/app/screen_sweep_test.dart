@@ -20,7 +20,7 @@ const _user = AuthUser(
   email: 'sweep@example.com',
   firstName: 'Sweep',
   lastName: 'Tester',
-  roles: ['USER'],
+  role: 'USER',
 );
 
 /// Every screen the app can show, by route — the authenticated ones on the

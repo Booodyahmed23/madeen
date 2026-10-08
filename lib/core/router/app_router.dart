@@ -8,6 +8,8 @@ import '../../features/ai_analysis/presentation/screens/topic_ai_insight_screen.
 import '../../features/ai_tutor/presentation/screens/ai_tutor_screen.dart';
 import '../../features/auth/presentation/providers/auth_notifier.dart';
 import '../../features/auth/presentation/providers/auth_state.dart';
+import '../../features/auth/presentation/screens/change_password_screen.dart';
+import '../../features/auth/presentation/screens/delete_account_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/profile_screen.dart';
@@ -53,6 +55,8 @@ import 'router_refresh_notifier.dart';
 abstract final class AppRoutes {
   static const home = '/';
   static const profile = '/profile';
+  static const changePassword = '/profile/change-password';
+  static const deleteAccount = '/profile/delete-account';
   static const login = '/login';
   static const register = '/register';
   static const forgotPassword = '/forgot-password';
@@ -217,6 +221,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.profile,
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.changePassword,
+        builder: (context, state) => const ChangePasswordScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.deleteAccount,
+        builder: (context, state) => const DeleteAccountScreen(),
       ),
       GoRoute(
         path: AppRoutes.login,

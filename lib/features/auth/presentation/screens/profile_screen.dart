@@ -16,10 +16,10 @@ import '../widgets/auth_error_banner.dart';
 import '../widgets/logout_confirmation.dart';
 
 /// The signed-in user's own profile. Only what the backend supports is
-/// editable — first and last name via `PATCH /users/me`. Email is shown
-/// read-only; password/email change, avatar, account deletion and session
-/// management have no backend endpoints yet, so they are deliberately not
-/// offered here (see features/auth/README.md).
+/// editable — first and last name via `PATCH /users/me`; password change
+/// and account deletion open their own screens. Email is shown read-only;
+/// email change, avatar and session management have no backend endpoints,
+/// so they are deliberately not offered here (see features/auth/README.md).
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
@@ -278,6 +278,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: MadeenSpace.xl),
+                    MadeenSectionHeader(title: l10n.profileSecuritySection),
+                    const SizedBox(height: MadeenSpace.sm),
+                    MadeenCard(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: MadeenSpace.md,
+                      ),
+                      child: MadeenDividedList(
+                        children: [
+                          _SettingsRow(
+                            icon: Icons.lock_outline,
+                            title: l10n.profileChangePassword,
+                            onTap: () => context.push(AppRoutes.changePassword),
+                          ),
+                          _SettingsRow(
+                            icon: Icons.delete_outline,
+                            title: l10n.profileDeleteAccount,
+                            destructive: true,
+                            onTap: () => context.push(AppRoutes.deleteAccount),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -370,22 +393,24 @@ class _SettingsRow extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.onTap,
+    this.destructive = false,
   });
 
   final IconData icon;
   final String title;
   final VoidCallback onTap;
+  final bool destructive;
 
   @override
   Widget build(BuildContext context) {
     final t = MadeenTokens.of(context);
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: t.inkSecondary),
+      leading: Icon(icon, color: destructive ? t.error : t.inkSecondary),
       title: Text(
         title,
         style: MadeenType.bodyMd.copyWith(
-          color: t.ink,
+          color: destructive ? t.error : t.ink,
           fontWeight: FontWeight.w600,
         ),
       ),

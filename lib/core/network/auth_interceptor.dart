@@ -2,15 +2,33 @@ import 'package:dio/dio.dart';
 
 import 'auth_session_callbacks.dart';
 
-const _authPathPrefix = '/auth/';
+/// Auth endpoints whose 401 means "bad credentials / bad refresh token",
+/// not "access token expired" — so they are never refresh-and-retried.
+/// Every other path, including `/auth/me` and `/auth/change-password`,
+/// refreshes and retries like any other call (contract §G5).
+const _noRetryPaths = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh',
+  '/auth/logout',
+  '/auth/password-reset/',
+];
 const _retriedKey = 'retried';
 
+/// Request `extra` flag for a call that carries its own `Authorization`
+/// header (see ApiClient.get's `accessToken`): the interceptor neither
+/// replaces that header nor refresh-and-retries the call.
+const explicitAuthKey = 'explicitAuth';
+
+bool _isNoRetryPath(String path) =>
+    _noRetryPaths.any((prefix) => path.contains(prefix));
+
 /// Attaches the current access token to every request, and on a 401 from
-/// anything other than the auth endpoints themselves, attempts exactly one
-/// silent refresh-and-retry before giving up. Excluding `/auth/*` from the
-/// retry path is what prevents an infinite loop if the refresh call itself
-/// ever returns 401 (an expired/reused refresh token) — see
-/// ARCHITECTURE.md §31.11.
+/// anything other than the credential endpoints themselves, attempts
+/// exactly one silent refresh-and-retry before giving up. Excluding
+/// `/auth/refresh` (and the other [_noRetryPaths]) from the retry path is
+/// what prevents an infinite loop if the refresh call itself ever returns
+/// 401 (an expired/reused refresh token) — see ARCHITECTURE.md §31.11.
 class AuthInterceptor extends Interceptor {
   AuthInterceptor(this._dio, this._bridge);
 
@@ -29,6 +47,10 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    if (options.extra[explicitAuthKey] == true) {
+      handler.next(options);
+      return;
+    }
     final token = _callbacks.getAccessToken();
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
@@ -42,10 +64,14 @@ class AuthInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     final options = err.requestOptions;
-    final isAuthEndpoint = options.path.contains(_authPathPrefix);
+    final isAuthEndpoint = _isNoRetryPath(options.path);
     final alreadyRetried = options.extra[_retriedKey] == true;
+    final explicitAuth = options.extra[explicitAuthKey] == true;
 
-    if (err.response?.statusCode != 401 || isAuthEndpoint || alreadyRetried) {
+    if (err.response?.statusCode != 401 ||
+        isAuthEndpoint ||
+        alreadyRetried ||
+        explicitAuth) {
       handler.next(err);
       return;
     }

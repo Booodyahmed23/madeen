@@ -7,16 +7,17 @@ class AuthUser {
     required this.email,
     required this.firstName,
     required this.lastName,
-    required this.roles,
+    required this.role,
   });
 
   final String id;
   final String email;
   final String firstName;
   final String lastName;
-  final List<String> roles;
+  /// `USER` | `ADMIN`.
+  final String role;
 
-  bool get isAdmin => roles.contains('ADMIN');
+  bool get isAdmin => role == 'ADMIN';
 
   AuthUser copyWith({String? firstName, String? lastName}) {
     return AuthUser(
@@ -24,7 +25,7 @@ class AuthUser {
       email: email,
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
-      roles: roles,
+      role: role,
     );
   }
 }

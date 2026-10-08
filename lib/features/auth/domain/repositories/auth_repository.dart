@@ -28,6 +28,11 @@ abstract class AuthRepository {
   /// case: a transient outage must never sign the user out.
   Future<AuthSession?> restoreSession();
 
+  /// Exchanges the stored refresh token for a new access token, without
+  /// re-fetching the user — used by the network layer's silent refresh.
+  /// Same `null` / throws contract as [restoreSession].
+  Future<String?> refreshAccessToken();
+
   /// Clears the local session first (so the user is signed out on this
   /// device no matter what), then makes a best-effort attempt to revoke the
   /// refresh session server-side.
@@ -43,4 +48,17 @@ abstract class AuthRepository {
   Future<Result<AuthUser>> getCurrentUser();
 
   Future<Result<AuthUser>> updateProfile({String? firstName, String? lastName});
+
+  /// Changes the password and signs out every other device. Returns the new
+  /// access token; the new refresh token is persisted (the old one is
+  /// revoked).
+  Future<Result<String>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
+  /// Permanently deletes (anonymises) the account. On success the server has
+  /// already ended every session, and the local session is cleared — no
+  /// logout call follows.
+  Future<Result<void>> deleteAccount(String password);
 }

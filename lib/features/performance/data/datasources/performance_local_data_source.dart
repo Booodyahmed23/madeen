@@ -55,6 +55,11 @@ class PerformanceLocalDataSource {
       jsonEncode([for (final record in capped) record.toJson()]),
     );
   }
+
+  /// Erases everything stored for [userId] (account deletion).
+  Future<void> clear(String userId) async {
+    await (await _preferences()).remove(keyFor(userId));
+  }
 }
 
 final performanceLocalDataSourceProvider = Provider<PerformanceLocalDataSource>(

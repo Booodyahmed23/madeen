@@ -25,7 +25,7 @@ const testUser = AuthUser(
   email: 'jane@example.com',
   firstName: 'Jane',
   lastName: 'Doe',
-  roles: ['USER'],
+  role: 'USER',
 );
 const testSession = AuthSession(user: testUser, accessToken: 'access-token-1');
 

@@ -19,7 +19,7 @@ const _user = AuthUser(
   email: 'jane@example.com',
   firstName: 'Jane',
   lastName: 'Doe',
-  roles: ['USER'],
+  role: 'USER',
 );
 const _session = AuthSession(user: _user, accessToken: 'access-token-1');
 
@@ -136,7 +136,7 @@ void main() {
     when(() => repository.restoreSession()).thenAnswer((_) async => _session);
     await initializeAndSettle();
 
-    when(() => repository.restoreSession()).thenAnswer((_) async => null);
+    when(() => repository.refreshAccessToken()).thenAnswer((_) async => null);
     final newToken = await container
         .read(authNotifierProvider.notifier)
         .silentRefresh();
@@ -217,10 +217,9 @@ void main() {
       when(() => repository.restoreSession()).thenAnswer((_) async => _session);
       await initializeAndSettle();
 
-      when(() => repository.restoreSession()).thenAnswer(
-        (_) async =>
-            const AuthSession(user: _user, accessToken: 'access-token-2'),
-      );
+      when(
+        () => repository.refreshAccessToken(),
+      ).thenAnswer((_) async => 'access-token-2');
       final token = await container
           .read(authNotifierProvider.notifier)
           .silentRefresh();
@@ -230,6 +229,8 @@ void main() {
         container.read(authNotifierProvider.notifier).accessTokenOrNull,
         'access-token-2',
       );
+      // The user is kept — a refresh never re-fetches the profile.
+      verifyNever(() => repository.getCurrentUser());
     });
 
     test(
@@ -239,7 +240,7 @@ void main() {
             .thenAnswer((_) async => _session);
         await initializeAndSettle();
 
-        when(() => repository.restoreSession())
+        when(() => repository.refreshAccessToken())
             .thenThrow(const NetworkFailure());
 
         await expectLater(
@@ -273,7 +274,7 @@ void main() {
       email: 'jane@example.com',
       firstName: 'Janet',
       lastName: 'Doe',
-      roles: ['USER'],
+      role: 'USER',
     );
 
     test('refreshCurrentUser updates the signed-in user', () async {

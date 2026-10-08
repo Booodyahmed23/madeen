@@ -13,6 +13,9 @@ class AuthValidators {
   static String? email(BuildContext context, String? value) {
     final l10n = AppLocalizations.of(context)!;
     if (value == null || value.trim().isEmpty) return l10n.validationRequired;
+    if (value.trim().length > maxEmailLength) {
+      return l10n.validationInvalidEmail;
+    }
     final pattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     if (!pattern.hasMatch(value.trim())) return l10n.validationInvalidEmail;
     return null;
@@ -21,20 +24,22 @@ class AuthValidators {
   static String? password(BuildContext context, String? value) {
     final l10n = AppLocalizations.of(context)!;
     if (value == null || value.isEmpty) return l10n.validationRequired;
-    if (value.length < 8) return l10n.validationPasswordTooShort;
-    if (value.length > maxPasswordLength) return l10n.validationPasswordTooLong;
-    final hasLetter = RegExp(r'[A-Za-z]').hasMatch(value);
-    final hasDigit = RegExp(r'\d').hasMatch(value);
-    if (!hasLetter || !hasDigit) {
-      return l10n.validationPasswordNeedsLetterAndNumber;
+    if (value.length < minPasswordLength) {
+      return l10n.validationPasswordTooShort;
     }
+    if (value.length > maxPasswordLength) return l10n.validationPasswordTooLong;
     return null;
   }
 
-  /// Mirrors the backend's RegisterDto/ResetPasswordDto `@MaxLength(72)`.
-  static const maxPasswordLength = 72;
+  /// The API's password rule for register, reset and change password
+  /// (contract §A1) — length only, the same as the website.
+  static const minPasswordLength = 8;
+  static const maxPasswordLength = 200;
 
-  /// Mirrors the backend's `@MaxLength(100)` on first/last name.
+  /// The API's `email` limit.
+  static const maxEmailLength = 254;
+
+  /// The API's first/last name limit (1–100).
   static const maxNameLength = 100;
 
   static String? name(BuildContext context, String? value) {

@@ -15,7 +15,7 @@ const _fresh = AuthUser(
   email: 'jane@example.com',
   firstName: 'Janet',
   lastName: 'Doe',
-  roles: ['USER'],
+  role: 'USER',
 );
 
 void main() {
@@ -210,14 +210,16 @@ void main() {
   ) async {
     await open(tester);
 
-    for (final label in [
-      'Change password',
-      'Change email',
-      'Delete account',
-      'Avatar',
-    ]) {
+    for (final label in ['Change email', 'Avatar']) {
       expect(find.textContaining(label), findsNothing);
     }
+  });
+
+  testWidgets('offers Change password and Delete account', (tester) async {
+    await open(tester);
+
+    expect(find.text('Change password'), findsOneWidget);
+    expect(find.text('Delete account'), findsOneWidget);
   });
 
   testWidgets('Arabic + dark: RTL, dark scheme, Arabic copy', (tester) async {

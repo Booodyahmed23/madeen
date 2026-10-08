@@ -1,49 +1,66 @@
+import 'package:dio/dio.dart' show Headers;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_exception.dart';
 
-/// Raw shape of a register/login/refresh response — this is the only place
-/// in the app that knows the backend's exact JSON keys for these calls.
-class AuthResponseModel {
-  const AuthResponseModel({
-    required this.userId,
-    required this.email,
-    required this.firstName,
-    required this.lastName,
-    required this.roles,
-    required this.accessToken,
-    required this.refreshToken,
-  });
+const _refreshCookieName = 'refresh_token';
 
-  factory AuthResponseModel.fromJson(Map<String, dynamic> json) {
-    final user = json['user'] as Map<String, dynamic>;
-    return AuthResponseModel(
-      userId: user['id'] as String,
-      email: user['email'] as String,
-      firstName: user['firstName'] as String,
-      lastName: user['lastName'] as String,
-      roles: (user['roles'] as List).cast<String>(),
-      accessToken: json['accessToken'] as String,
-      refreshToken: json['refreshToken'] as String,
+/// What register, login, refresh and change-password return: the access
+/// token from the body, and the (rotated) refresh token from the
+/// `Set-Cookie: refresh_token=…` header — the API never puts the refresh
+/// token in the body, and returns no user (contract §A1).
+class AuthTokensModel {
+  const AuthTokensModel({required this.accessToken, required this.refreshToken});
+
+  factory AuthTokensModel.fromResponse(dynamic data, Headers headers) {
+    final refreshToken = refreshTokenFromCookies(headers['set-cookie']);
+    if (refreshToken == null) {
+      // A session without a refresh token would silently end at the first
+      // access-token expiry — fail now instead.
+      throw const ApiException(
+        statusCode: 500,
+        message: 'The server did not return a refresh_token cookie.',
+      );
+    }
+    return AuthTokensModel(
+      accessToken: (data as Map<String, dynamic>)['accessToken'] as String,
+      refreshToken: refreshToken,
     );
   }
 
-  final String userId;
-  final String email;
-  final String firstName;
-  final String lastName;
-  final List<String> roles;
   final String accessToken;
   final String refreshToken;
 }
 
+/// The `refresh_token` value from a response's `set-cookie` headers, or
+/// `null` when there is none (or it is being cleared with an empty value).
+String? refreshTokenFromCookies(List<String>? setCookieHeaders) {
+  for (final header in setCookieHeaders ?? const <String>[]) {
+    final pair = header.split(';').first.trim();
+    final separator = pair.indexOf('=');
+    if (separator < 0) continue;
+    if (pair.substring(0, separator).trim() != _refreshCookieName) continue;
+    final value = pair.substring(separator + 1).trim();
+    return value.isEmpty ? null : value;
+  }
+  return null;
+}
+
+Map<String, String> _refreshCookieHeader(String refreshToken) => {
+  'Cookie': '$_refreshCookieName=$refreshToken',
+};
+
+/// `GET /auth/me` (`{ id, email, firstName, lastName, role }`) and
+/// `PATCH /users/me` (the same plus `isActive`, `createdAt`, `updatedAt`,
+/// which the app doesn't use).
 class UserProfileModel {
   const UserProfileModel({
     required this.id,
     required this.email,
     required this.firstName,
     required this.lastName,
-    required this.roles,
+    required this.role,
   });
 
   factory UserProfileModel.fromJson(Map<String, dynamic> json) {
@@ -52,7 +69,7 @@ class UserProfileModel {
       email: json['email'] as String,
       firstName: json['firstName'] as String,
       lastName: json['lastName'] as String,
-      roles: (json['roles'] as List).cast<String>(),
+      role: json['role'] as String,
     );
   }
 
@@ -60,7 +77,9 @@ class UserProfileModel {
   final String email;
   final String firstName;
   final String lastName;
-  final List<String> roles;
+
+  /// `USER` | `ADMIN`.
+  final String role;
 }
 
 /// Talks to `/auth/*` and `/users/me` — the only layer in the app that
@@ -71,76 +90,91 @@ class AuthRemoteDataSource {
 
   final ApiClient _apiClient;
 
-  Future<AuthResponseModel> register({
+  Future<AuthTokensModel> register({
     required String firstName,
     required String lastName,
     required String email,
     required String password,
   }) {
-    return _apiClient.post(
+    return _apiClient.postWithHeaders(
       '/auth/register',
       data: {
-        'firstName': firstName,
-        'lastName': lastName,
         'email': email,
         'password': password,
+        'firstName': firstName,
+        'lastName': lastName,
       },
-      parse: (data) => AuthResponseModel.fromJson(data as Map<String, dynamic>),
+      parse: AuthTokensModel.fromResponse,
     );
   }
 
-  Future<AuthResponseModel> login({
+  Future<AuthTokensModel> login({
     required String email,
     required String password,
   }) {
-    return _apiClient.post(
+    return _apiClient.postWithHeaders(
       '/auth/login',
       data: {'email': email, 'password': password},
-      parse: (data) => AuthResponseModel.fromJson(data as Map<String, dynamic>),
+      parse: AuthTokensModel.fromResponse,
     );
   }
 
-  Future<AuthResponseModel> refresh(String refreshToken) {
-    return _apiClient.post(
+  /// Rotates the refresh token: the returned [AuthTokensModel.refreshToken]
+  /// replaces [refreshToken], which the server has now revoked.
+  Future<AuthTokensModel> refresh(String refreshToken) {
+    return _apiClient.postWithHeaders(
       '/auth/refresh',
-      data: {'refreshToken': refreshToken},
-      parse: (data) => AuthResponseModel.fromJson(data as Map<String, dynamic>),
+      headers: _refreshCookieHeader(refreshToken),
+      parse: AuthTokensModel.fromResponse,
     );
   }
 
-  Future<void> logout(String? refreshToken) {
-    return _apiClient.post(
+  Future<void> logout(String refreshToken) {
+    return _apiClient.postWithHeaders(
       '/auth/logout',
-      data: {'refreshToken': ?refreshToken},
-      parse: (_) {},
+      headers: _refreshCookieHeader(refreshToken),
+      parse: (_, _) {},
     );
   }
 
-  Future<void> forgotPassword(String email) {
+  Future<void> requestPasswordReset(String email) {
     return _apiClient.post(
-      '/auth/forgot-password',
+      '/auth/password-reset/request',
       data: {'email': email},
       parse: (_) {},
     );
   }
 
-  Future<void> resetPassword({
+  Future<void> confirmPasswordReset({
     required String token,
     required String newPassword,
   }) {
     return _apiClient.post(
-      '/auth/reset-password',
+      '/auth/password-reset/confirm',
       data: {'token': token, 'newPassword': newPassword},
       parse: (_) {},
     );
   }
 
-  /// `/users/me` rather than the equivalent `/auth/me`: the network layer
-  /// never refresh-and-retries `/auth/*` paths (see AuthInterceptor), and a
-  /// profile load must survive an expired access token like any other call.
-  Future<UserProfileModel> getCurrentUser() {
+  /// Signs out every other device: the returned tokens replace the current
+  /// ones (the old refresh token is revoked).
+  Future<AuthTokensModel> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    return _apiClient.postWithHeaders(
+      '/auth/change-password',
+      data: {'currentPassword': currentPassword, 'newPassword': newPassword},
+      parse: AuthTokensModel.fromResponse,
+    );
+  }
+
+  /// [accessToken] authenticates this one call explicitly — used right after
+  /// login/register/refresh, before the new token is in the app's session.
+  Future<UserProfileModel> getCurrentUser({String? accessToken}) {
     return _apiClient.get(
-      '/users/me',
+      '/auth/me',
+      accessToken: accessToken,
       parse: (data) => UserProfileModel.fromJson(data as Map<String, dynamic>),
     );
   }
@@ -153,6 +187,16 @@ class AuthRemoteDataSource {
       '/users/me',
       data: {'firstName': ?firstName, 'lastName': ?lastName},
       parse: (data) => UserProfileModel.fromJson(data as Map<String, dynamic>),
+    );
+  }
+
+  /// Anonymises and deactivates the account; every session (including the
+  /// current access token) ends at once.
+  Future<void> deleteAccount(String password) {
+    return _apiClient.delete(
+      '/users/me',
+      data: {'password': password},
+      parse: (_) {},
     );
   }
 }

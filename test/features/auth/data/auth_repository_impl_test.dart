@@ -16,14 +16,16 @@ void main() {
   late MockSecureStorage secureStorage;
   late AuthRepositoryImpl repository;
 
-  const response = AuthResponseModel(
-    userId: 'user-1',
+  const response = AuthTokensModel(
+    accessToken: 'access-token-1',
+    refreshToken: 'refresh-token-1',
+  );
+  const profile = UserProfileModel(
+    id: 'user-1',
     email: 'jane@example.com',
     firstName: 'Jane',
     lastName: 'Doe',
-    roles: ['USER'],
-    accessToken: 'access-token-1',
-    refreshToken: 'refresh-token-1',
+    role: 'USER',
   );
 
   setUp(() {
@@ -33,6 +35,9 @@ void main() {
 
     when(() => secureStorage.saveRefreshToken(any())).thenAnswer((_) async {});
     when(() => secureStorage.clear()).thenAnswer((_) async {});
+    when(
+      () => remote.getCurrentUser(accessToken: any(named: 'accessToken')),
+    ).thenAnswer((_) async => profile);
   });
 
   group('register / login', () {
@@ -61,6 +66,10 @@ void main() {
         expect(session.accessToken, 'access-token-1');
         verify(() => secureStorage.saveRefreshToken('refresh-token-1'))
             .called(1);
+        // Register returns no user: it is loaded with the new token.
+        verify(
+          () => remote.getCurrentUser(accessToken: 'access-token-1'),
+        ).called(1);
       },
     );
 
@@ -142,6 +151,27 @@ void main() {
       expect(session, isNotNull);
       expect(session!.user.id, 'user-1');
       verify(() => secureStorage.saveRefreshToken('refresh-token-1')).called(1);
+      verify(
+        () => remote.getCurrentUser(accessToken: 'access-token-1'),
+      ).called(1);
+    });
+
+    test('a failed profile load after a good refresh keeps the rotated '
+        'token and throws', () async {
+      when(() => secureStorage.readRefreshToken())
+          .thenAnswer((_) async => 'stored-refresh');
+      when(() => remote.refresh('stored-refresh'))
+          .thenAnswer((_) async => response);
+      when(
+        () => remote.getCurrentUser(accessToken: any(named: 'accessToken')),
+      ).thenThrow(const ApiException(statusCode: 0, message: 'offline'));
+
+      await expectLater(
+        repository.restoreSession(),
+        throwsA(isA<NetworkFailure>()),
+      );
+      verify(() => secureStorage.saveRefreshToken('refresh-token-1')).called(1);
+      verifyNever(() => secureStorage.clear());
     });
 
     test('clears storage and returns null when the stored token is no longer valid', () async {
@@ -204,15 +234,129 @@ void main() {
     }
   });
 
+  group('refreshAccessToken', () {
+    test('rotates the stored token without reloading the user', () async {
+      when(() => secureStorage.readRefreshToken())
+          .thenAnswer((_) async => 'stored-refresh');
+      when(() => remote.refresh('stored-refresh'))
+          .thenAnswer((_) async => response);
+
+      expect(await repository.refreshAccessToken(), 'access-token-1');
+      verify(() => secureStorage.saveRefreshToken('refresh-token-1')).called(1);
+      verifyNever(
+        () => remote.getCurrentUser(accessToken: any(named: 'accessToken')),
+      );
+    });
+  });
+
+  group('changePassword', () {
+    test('saves the new refresh token and returns the new access token',
+        () async {
+      when(
+        () => remote.changePassword(
+          currentPassword: 'old-pass',
+          newPassword: 'new-pass-123',
+        ),
+      ).thenAnswer(
+        (_) async => const AuthTokensModel(
+          accessToken: 'access-2',
+          refreshToken: 'refresh-2',
+        ),
+      );
+
+      final result = await repository.changePassword(
+        currentPassword: 'old-pass',
+        newPassword: 'new-pass-123',
+      );
+
+      expect((result as Success).value, 'access-2');
+      verify(() => secureStorage.saveRefreshToken('refresh-2')).called(1);
+    });
+
+    test('keeps the WRONG_CURRENT_PASSWORD code', () async {
+      when(
+        () => remote.changePassword(
+          currentPassword: any(named: 'currentPassword'),
+          newPassword: any(named: 'newPassword'),
+        ),
+      ).thenThrow(
+        const ApiException(
+          statusCode: 400,
+          message: 'Current password is incorrect',
+          code: 'WRONG_CURRENT_PASSWORD',
+        ),
+      );
+
+      final result = await repository.changePassword(
+        currentPassword: 'x',
+        newPassword: 'new-pass-123',
+      );
+
+      final failure = (result as Failure).failure;
+      expect(failure, isA<ValidationFailure>());
+      expect(failure.code, 'WRONG_CURRENT_PASSWORD');
+      verifyNever(() => secureStorage.saveRefreshToken(any()));
+    });
+  });
+
+  group('deleteAccount', () {
+    test('clears the local session and never calls logout', () async {
+      when(() => remote.deleteAccount('pass')).thenAnswer((_) async {});
+
+      final result = await repository.deleteAccount('pass');
+
+      expect(result, isA<Success<void>>());
+      verify(() => secureStorage.clear()).called(1);
+      verifyNever(() => remote.logout(any()));
+    });
+
+    test('keeps the session when the password is wrong', () async {
+      when(() => remote.deleteAccount(any())).thenThrow(
+        const ApiException(
+          statusCode: 400,
+          message: 'Wrong password',
+          code: 'WRONG_CURRENT_PASSWORD',
+        ),
+      );
+
+      final result = await repository.deleteAccount('nope');
+
+      expect((result as Failure).failure.code, 'WRONG_CURRENT_PASSWORD');
+      verifyNever(() => secureStorage.clear());
+    });
+  });
+
+  group('resetPassword', () {
+    test('clears the local session (the server revoked all of them)',
+        () async {
+      when(
+        () => remote.confirmPasswordReset(
+          token: 'tok',
+          newPassword: 'new-pass-123',
+        ),
+      ).thenAnswer((_) async {});
+
+      final result = await repository.resetPassword(
+        token: 'tok',
+        newPassword: 'new-pass-123',
+      );
+
+      expect(result, isA<Success<void>>());
+      verify(() => secureStorage.clear()).called(1);
+    });
+  });
+
   group('getCurrentUser', () {
-    test('maps the /users/me profile onto an AuthUser', () async {
-      when(() => remote.getCurrentUser()).thenAnswer(
+    test('maps the /auth/me profile onto an AuthUser', () async {
+      when(
+        () => remote.getCurrentUser(accessToken: any(named: 'accessToken')),
+      ).thenAnswer(
         (_) async => const UserProfileModel(
           id: 'user-1',
           email: 'jane@example.com',
           firstName: 'Janet',
           lastName: 'Doe',
-          roles: ['USER'],
+          role: 'USER',
         ),
       );
 
@@ -222,7 +366,7 @@ void main() {
     });
 
     test('returns a typed failure instead of throwing', () async {
-      when(() => remote.getCurrentUser())
+      when(() => remote.getCurrentUser(accessToken: any(named: 'accessToken')))
           .thenThrow(const ApiException(statusCode: 0, message: 'offline'));
 
       final result = await repository.getCurrentUser();
@@ -254,6 +398,16 @@ void main() {
       // A user must never be left "stuck logged in" locally just because
       // the revoke call couldn't reach the server (ARCHITECTURE.md §7).
       verify(() => secureStorage.clear()).called(1);
+    });
+
+    test('skips the server call when no refresh token is stored', () async {
+      when(() => secureStorage.readRefreshToken())
+          .thenAnswer((_) async => null);
+
+      await repository.logout();
+
+      verify(() => secureStorage.clear()).called(1);
+      verifyNever(() => remote.logout(any()));
     });
 
     test('clears local storage BEFORE the server call, so a hung revoke never '

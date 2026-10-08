@@ -1,8 +1,9 @@
 # auth
 
 Registration, login, token refresh/rotation, logout, forgot/reset password,
-and basic profile editing — all against the **real** backend `identity`
-module (see docs/ARCHITECTURE.md §3). Nothing in this feature is mocked.
+profile editing, change password and account deletion — all against the
+**real** API (docs/MOBILE_API_CONTRACT.md §A1). Nothing in this feature is
+mocked.
 
 - `domain/` — `AuthUser`, `AuthSession`, and the `AuthRepository` interface.
   No Flutter or Dio imports here — this layer is plain Dart.
@@ -10,7 +11,8 @@ module (see docs/ARCHITECTURE.md §3). Nothing in this feature is mocked.
   `/users/me`'s JSON shapes) and `AuthRepositoryImpl` (maps errors onto
   `AppFailure`, persists the refresh token via `SecureStorage`).
 - `presentation/` — `AuthState`, `AuthNotifier`, the screens (Login,
-  Register, Forgot Password, Reset Password, Profile, Session Unavailable),
+  Register, Forgot Password, Reset Password, Profile, Change Password,
+  Delete Account, Session Unavailable),
   form validators, and shared widgets (error banner, password field,
   logout confirmation).
 
@@ -21,13 +23,29 @@ module (see docs/ARCHITECTURE.md §3). Nothing in this feature is mocked.
   the server couldn't be reached to restore it (offline, 5xx, 429): the
   token is **kept**, and the user chooses Try again or Log out. Only a 4xx
   verdict on the token itself (expired/revoked/reused/malformed) clears it.
-- **Tokens:** the refresh token lives in Keychain/Keystore
-  (`SecureStorage`); the access token lives only in memory (`AuthState`).
+- **Tokens:** the API returns only `{ accessToken }` in the body; the
+  refresh token arrives as a `Set-Cookie: refresh_token=…` header, which
+  the data source reads by hand (`ApiClient.postWithHeaders`) and sends
+  back as a `Cookie` header on refresh and logout. It lives in
+  Keychain/Keystore (`SecureStorage`); the access token lives only in
+  memory (`AuthState`). Login, register and session restore return no
+  user, so they are followed by `GET /auth/me` with the new token.
 - **401 handling:** `core/network/AuthInterceptor` refreshes once and
   retries once; concurrent 401s share one in-flight refresh (the backend
   treats a second use of a rotated refresh token as replay and revokes the
-  whole session family). `/auth/*` requests are never retried.
+  whole session family). Only login, register, refresh, logout and
+  password reset are never retried; `/auth/me` and `/auth/change-password`
+  are. A silent refresh only swaps the access token — it doesn't reload
+  the user.
 - **Logout:** local session cleared first, server revocation best-effort.
+- **Change password:** keeps this device signed in with the returned
+  tokens; the server signs out every other device.
+- **Delete account:** `DELETE /users/me` with the password. On success the
+  local session and the device's per-user data (`localUserDataWipersProvider`,
+  wired in `main.dart`) are wiped and the app returns to Login. No logout
+  call follows — the server has already ended every session.
+- **Reset password:** revokes every session, so the stored session is
+  cleared and the user logs in again.
 
 The network layer reaches this feature only through `AuthSessionBridge`
 (`core/network/auth_session_callbacks.dart`), which `AuthNotifier` attaches
@@ -42,7 +60,9 @@ Other features depend on auth only through `core/` or by reading
 
 ## Password reset on mobile
 
-The backend emails a link to the **web app** (`WEB_APP_URL/reset-password
+Uses `POST /auth/password-reset/request` and `/confirm`. Reset emails are
+not sent yet, so the flow can't be completed end to end for now. The
+backend emails a link to the **web app** (`WEB_APP_URL/reset-password
 ?token=…`); no native deep link is configured. On mobile, Forgot Password →
 "Already have a reset code? Enter code" opens Reset Password, where the
 token from that link is pasted. `/reset-password?token=…` also prefills it,
@@ -56,9 +76,7 @@ offers **no UI** for them (no placeholders, no fake flows):
 
 | Capability | Missing backend support |
 |---|---|
-| Change password (signed in) | No endpoint |
 | Change email | `UpdateProfileDto` excludes email; no re-verification flow |
 | Email verification | No model or endpoint |
 | Avatar | No field, upload, or storage |
-| Account deletion | No endpoint |
 | Session / device management | `RefreshSession` stores user agent/IP, but no list/revoke endpoint |

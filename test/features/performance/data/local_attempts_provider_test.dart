@@ -20,7 +20,7 @@ AuthSession _sessionFor(String id) => AuthSession(
     email: '$id@example.com',
     firstName: id,
     lastName: 'Test',
-    roles: const ['USER'],
+    role: 'USER',
   ),
   accessToken: 'token-$id',
 );

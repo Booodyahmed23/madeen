@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/app_failure.dart';
 import '../../../../core/error/result.dart';
 import '../../../../core/network/auth_session_callbacks.dart';
+import '../../../../core/storage/local_user_data.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../data/repositories/auth_repository_impl.dart';
@@ -111,11 +112,64 @@ class AuthNotifier extends Notifier<AuthState> {
     return _repository.forgotPassword(email);
   }
 
+  /// On success every session is revoked server-side (this device's too),
+  /// so a signed-in caller is signed out here as well.
   Future<Result<void>> resetPassword({
     required String token,
     required String newPassword,
-  }) {
-    return _repository.resetPassword(token: token, newPassword: newPassword);
+  }) async {
+    final result = await _repository.resetPassword(
+      token: token,
+      newPassword: newPassword,
+    );
+    if (result is Success<void> && state is AuthAuthenticated) {
+      state = const AuthUnauthenticated();
+    }
+    return result;
+  }
+
+  /// Keeps this device signed in with the new tokens; every other device is
+  /// signed out by the server.
+  Future<Result<void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final result = await _repository.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+    switch (result) {
+      case Success(value: final accessToken):
+        final current = state;
+        if (current is AuthAuthenticated) {
+          state = current.copyWith(accessToken: accessToken);
+        }
+        return const Result.success(null);
+      case Failure(:final failure):
+        return Result.failure(failure);
+    }
+  }
+
+  /// Deletes the account, wipes what the device keeps for this user, and
+  /// signs out. No `/auth/logout` follows — the server already ended every
+  /// session.
+  Future<Result<void>> deleteAccount(String password) async {
+    final current = state;
+    final result = await _repository.deleteAccount(password);
+    if (result is Success<void>) {
+      if (current is AuthAuthenticated) {
+        for (final wipe in ref.read(localUserDataWipersProvider)) {
+          try {
+            await wipe(current.user.id);
+          } catch (_) {
+            // Best-effort: the account is already gone server-side, and a
+            // failed local wipe must not keep the user signed in.
+          }
+        }
+      }
+      state = const AuthUnauthenticated();
+    }
+    return result;
   }
 
   /// Re-fetches the signed-in user from the server (Profile calls this on
@@ -159,16 +213,16 @@ class AuthNotifier extends Notifier<AuthState> {
   /// — see ARCHITECTURE.md §31.11). Rethrows the [AppFailure] when the
   /// refresh couldn't be completed at all, leaving the session untouched.
   Future<String?> silentRefresh() async {
-    final session = await _repository.restoreSession();
-    if (session == null) {
+    final accessToken = await _repository.refreshAccessToken();
+    if (accessToken == null) {
       state = const AuthUnauthenticated();
       return null;
     }
-    state = AuthAuthenticated(
-      user: session.user,
-      accessToken: session.accessToken,
-    );
-    return session.accessToken;
+    final current = state;
+    if (current is AuthAuthenticated) {
+      state = current.copyWith(accessToken: accessToken);
+    }
+    return accessToken;
   }
 
   void forceLogout() {

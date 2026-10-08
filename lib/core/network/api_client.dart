@@ -45,17 +45,54 @@ class ApiClient {
 
   final Dio _dio;
 
+  /// [accessToken] overrides the session's token for this one request (and
+  /// opts it out of refresh-and-retry) — for the profile fetch that follows
+  /// login/register/refresh, before the new token is the session's.
   Future<T> get<T>(
     String path, {
     Map<String, dynamic>? queryParameters,
+    String? accessToken,
     required T Function(dynamic data) parse,
-  }) => _send(() => _dio.get(path, queryParameters: queryParameters), parse);
+  }) => _send(
+    () => _dio.get(
+      path,
+      queryParameters: queryParameters,
+      options: accessToken == null
+          ? null
+          : Options(
+              headers: {'Authorization': 'Bearer $accessToken'},
+              extra: {explicitAuthKey: true},
+            ),
+    ),
+    parse,
+  );
 
   Future<T> post<T>(
     String path, {
     Object? data,
     required T Function(dynamic data) parse,
   }) => _send(() => _dio.post(path, data: data), parse);
+
+  /// A POST whose parser also sees the response headers, and that can send
+  /// extra request headers — for the auth calls that carry the refresh
+  /// token in a `refresh_token` cookie rather than the body (contract §A1).
+  Future<T> postWithHeaders<T>(
+    String path, {
+    Object? data,
+    Map<String, String>? headers,
+    required T Function(dynamic data, Headers headers) parse,
+  }) async {
+    try {
+      final response = await _dio.post<dynamic>(
+        path,
+        data: data,
+        options: Options(headers: headers),
+      );
+      return parse(response.data, response.headers);
+    } on DioException catch (error) {
+      throw _mapError(error);
+    }
+  }
 
   Future<T> patch<T>(
     String path, {
@@ -91,18 +128,24 @@ class ApiClient {
     }
 
     final body = response.data;
-    final message = body is Map<String, dynamic>
-        ? (body['message'] is List
-              ? (body['message'] as List).join(', ')
-              : body['message']?.toString())
-        : null;
+    if (body is! Map<String, dynamic>) {
+      return ApiException(
+        statusCode: response.statusCode ?? 0,
+        message: 'Something went wrong.',
+      );
+    }
+
+    final rawMessage = body['message'];
+    final message = rawMessage is List
+        ? rawMessage.join(', ')
+        : rawMessage?.toString();
+    final details = body['details'];
 
     return ApiException(
       statusCode: response.statusCode ?? 0,
       message: message ?? 'Something went wrong.',
-      requestId: body is Map<String, dynamic>
-          ? body['requestId'] as String?
-          : null,
+      code: body['code'] as String?,
+      details: details is Map<String, dynamic> ? details : null,
     );
   }
 }

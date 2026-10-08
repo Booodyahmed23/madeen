@@ -1,9 +1,13 @@
 {
   "ENV_NAME": "development",
-  "API_BASE_URL": "http://localhost:3000/api/v1",
+  "API_BASE_URL": "http://localhost:3001/api/v1",
   "CURRICULUM_API_AVAILABLE": false,
   "STUDY_SESSION_API_AVAILABLE": false,
   "EXAM_SIMULATION_API_AVAILABLE": false,
   "PERFORMANCE_API_AVAILABLE": false,
-  "AI_ANALYSIS_API_AVAILABLE": false
+  "AI_ANALYSIS_API_AVAILABLE": false,
+  "NOTIFICATIONS_API_AVAILABLE": false,
+  "PUSH_API_AVAILABLE": false,
+  "AI_TUTOR_API_AVAILABLE": false,
+  "COURSE_API_AVAILABLE": false
 }

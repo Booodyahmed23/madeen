@@ -20,7 +20,7 @@ const _user = AuthUser(
   email: 'jane@example.com',
   firstName: 'Jane',
   lastName: 'Doe',
-  roles: ['USER'],
+  role: 'USER',
 );
 const _session = AuthSession(user: _user, accessToken: 'access-token-1');
 
@@ -135,7 +135,9 @@ void main() {
         final container = await _pumpApp(tester, repository);
         expect(find.text(_homeSubtitle), findsOneWidget);
 
-        when(() => repository.restoreSession()).thenAnswer((_) async => null);
+        when(
+          () => repository.refreshAccessToken(),
+        ).thenAnswer((_) async => null);
         await container.read(authNotifierProvider.notifier).silentRefresh();
         await tester.pumpAndSettle();
 

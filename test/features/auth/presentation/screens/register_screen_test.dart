@@ -47,10 +47,10 @@ void main() {
     await submit(tester);
     expect(find.text('Password must be at least 8 characters'), findsOneWidget);
 
-    await fill(tester, password: 'lettersonly');
+    await fill(tester, password: 'x' * 201);
     await submit(tester);
     expect(
-      find.text('Password must contain a letter and a number'),
+      find.text('Password must be 200 characters or fewer'),
       findsOneWidget,
     );
     verifyNever(

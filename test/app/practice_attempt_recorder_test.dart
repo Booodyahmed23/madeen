@@ -48,7 +48,7 @@ const _session = AuthSession(
     email: 'a@example.com',
     firstName: 'A',
     lastName: 'User',
-    roles: ['USER'],
+    role: 'USER',
   ),
   accessToken: 'token',
 );

@@ -57,22 +57,12 @@ void main() {
       });
     });
 
-    testWidgets('rejects a password missing a digit', (tester) async {
-      await _withContext(tester, (context) {
-        expect(AuthValidators.password(context, 'onlyletters'), isNotNull);
-      });
-    });
-
-    testWidgets('rejects a password missing a letter', (tester) async {
-      await _withContext(tester, (context) {
-        expect(AuthValidators.password(context, '12345678'), isNotNull);
-      });
-    });
-
-    testWidgets('accepts a password with a letter and a digit, 8+ chars', (
+    testWidgets('accepts any 8+ character password, like the API', (
       tester,
     ) async {
       await _withContext(tester, (context) {
+        expect(AuthValidators.password(context, 'onlyletters'), isNull);
+        expect(AuthValidators.password(context, '12345678'), isNull);
         expect(AuthValidators.password(context, 'Password123'), isNull);
       });
     });
@@ -88,14 +78,25 @@ void main() {
     });
   });
 
-  group('limits mirrored from the backend DTOs', () {
-    testWidgets('rejects a password longer than 72 characters', (tester) async {
+  group('limits mirrored from the API', () {
+    testWidgets('rejects a password longer than 200 characters', (
+      tester,
+    ) async {
       await _withContext(tester, (context) {
         expect(
-          AuthValidators.password(context, 'a1${'x' * 71}'),
-          'Password must be 72 characters or fewer',
+          AuthValidators.password(context, 'x' * 201),
+          'Password must be 200 characters or fewer',
         );
-        expect(AuthValidators.password(context, 'a1${'x' * 70}'), isNull);
+        expect(AuthValidators.password(context, 'x' * 200), isNull);
+      });
+    });
+
+    testWidgets('rejects an email longer than 254 characters', (tester) async {
+      await _withContext(tester, (context) {
+        expect(
+          AuthValidators.email(context, '${'a' * 250}@b.co'),
+          isNotNull,
+        );
       });
     });
 

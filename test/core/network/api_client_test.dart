@@ -45,8 +45,10 @@ void main() {
     final call = _client(
       () async => _json(409, {
         'statusCode': 409,
+        'error': 'Conflict',
         'message': 'An account with this email already exists',
-        'requestId': 'req-1',
+        'path': '/api/v1/auth/register',
+        'timestamp': '2026-10-08T00:00:00.000Z',
       }),
     ).post('/auth/register', parse: (_) {});
 
@@ -55,7 +57,7 @@ void main() {
       throwsA(
         isA<ApiException>()
             .having((e) => e.statusCode, 'statusCode', 409)
-            .having((e) => e.requestId, 'requestId', 'req-1')
+            .having((e) => e.code, 'code', isNull)
             .having(
               (e) => e.message,
               'message',
@@ -63,6 +65,60 @@ void main() {
             ),
       ),
     );
+  });
+
+  test('carries the error code and details', () async {
+    final call = _client(
+      () async => _json(400, {
+        'statusCode': 400,
+        'error': 'Bad Request',
+        'message': 'Reminder limit reached',
+        'code': 'REMINDER_LIMIT_REACHED',
+        'details': {'max': 20},
+      }),
+    ).post('/reminders', parse: (_) {});
+
+    await expectLater(
+      call,
+      throwsA(
+        isA<ApiException>()
+            .having((e) => e.code, 'code', 'REMINDER_LIMIT_REACHED')
+            .having((e) => e.details, 'details', {'max': 20}),
+      ),
+    );
+  });
+
+  test('postWithHeaders exposes response headers and sends request headers',
+      () async {
+    RequestOptions? sent;
+    final dio = Dio()
+      ..httpClientAdapter = _Adapter(
+        () async => ResponseBody.fromString(
+          jsonEncode({'accessToken': 'a'}),
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+            'set-cookie': ['refresh_token=r2; Path=/api/v1/auth; HttpOnly'],
+          },
+        ),
+      );
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          sent = options;
+          handler.next(options);
+        },
+      ),
+    );
+
+    final cookie = await ApiClient(dio).postWithHeaders(
+      '/auth/refresh',
+      headers: {'Cookie': 'refresh_token=r1'},
+      parse: (_, headers) => headers['set-cookie']!.single,
+    );
+
+    expect(sent!.headers['Cookie'], 'refresh_token=r1');
+    expect(cookie, startsWith('refresh_token=r2'));
   });
 
   test('joins class-validator message arrays', () async {
