@@ -10,7 +10,54 @@ Covers: Exam Setup (Program + Part, optionally Unit / Sub-unit, question
 count → time limit) → Active Exam (countdown, flags, question navigator) →
 Submission Review → Results (overall, per topic, wrong, unanswered) →
 Post-Exam Review, plus reopening a running attempt (Home's "Continue your
-exam" card). Must never share Study Session's routes or state.
+exam" card).
+
+## Why this is not "Study Session with a different timer"
+
+The two features enforce genuinely different rules, at the type/state
+level, not just visually:
+
+| | Study Session | Exam Simulation |
+|---|---|---|
+| Timer | count-up, pausable | count-down from the server's clock, **no pause method exists on the notifier at all** |
+| Topic context | shown (immediate parent) | in the payload, but **never on `ExamQuestion`** — only in Results/Review |
+| Feedback during the activity | optional (immediate or at-end mode) | **never — the API reveals nothing until the attempt ends** |
+| Question flagging | a server-side marker | a review/navigation aid, never affects scoring |
+| Entities | `StudySession`, `Question`, ... | `ExamAttempt`, `ExamQuestion`, ... — its own types, not shared |
+
+Do not "simplify" this feature by importing Study Session's entities,
+state, or notifier, and do not add a pause button or topic display here to
+"match" Study Session — those would undo the separation this feature
+exists to have.
+
+## Screens
+
+- **Setup**: Program (preselected from the student's access) + Part,
+  optionally narrowed to a Unit and Sub-unit; question count (10/20/50/80)
+  with the time limit derived from it (15/30/60/120 min — `examDurationFor`,
+  placeholder presets). The exam conditions are stated before starting.
+- **During the exam**: the question navigator (bottom sheet) shows every
+  question as current / answered / unanswered / flagged, plus a legend and
+  the live countdown; the always-visible status line counts answered and
+  flagged questions. Answers can be changed until submission.
+- **Submission**: one shared confirmation (`confirmExamSubmission`) —
+  "Submit Simulation?" with the unanswered count, or a plain confirmation
+  when everything is answered — from the navigator or the Exam Review
+  screen. Timeout still submits.
+- **Results**: overall performance (incl. average time per question), the
+  per-topic breakdown, and the wrong/unanswered questions, each opening
+  the post-exam review on that view.
+- **Analytics**: the recorded attempt carries one topic row per reviewed
+  topic (`LocalAttemptRecord.topics`), so Performance and AI Analysis see
+  the simulation's strong/weak topics, pace and unanswered questions.
+
+## Reused, on purpose
+
+Exam Setup reads Curriculum's programs and program tree via
+`curriculum_providers.dart` — read-only reuse of canonical curriculum data,
+not a dependency on Curriculum's screens or business logic. Talk to other
+features only through their public providers/repositories, never by
+importing another feature's presentation internals.
 
 ## How it maps onto the API
 
