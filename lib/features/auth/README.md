@@ -12,7 +12,7 @@ mocked.
   `AppFailure`, persists the refresh token via `SecureStorage`).
 - `presentation/` — `AuthState`, `AuthNotifier`, the screens (Login,
   Register, Forgot Password, Reset Password, Profile, Change Password,
-  Delete Account, Session Unavailable),
+  Signed-in Devices, Delete Account, Session Unavailable),
   form validators, and shared widgets (error banner, password field,
   logout confirmation).
 
@@ -44,6 +44,12 @@ mocked.
   local session and the device's per-user data (`localUserDataWipersProvider`,
   wired in `main.dart`) are wiped and the app returns to Login. No logout
   call follows — the server has already ended every session.
+- **Signed-in devices:** `GET /auth/sessions` lists every device (named
+  from its User-Agent — the app sends `MADEEN (<os>; <version>)`), with
+  sign-out for one (`DELETE /auth/sessions/:id`) or all others
+  (`POST /auth/sessions/revoke-others`). Signing out this device is
+  logging out. A device signed out elsewhere gets `401` on its next
+  refresh and lands on Login (the existing session-expired path).
 - **Reset password:** revokes every session, so the stored session is
   cleared and the user logs in again.
 
@@ -79,4 +85,3 @@ offers **no UI** for them (no placeholders, no fake flows):
 | Change email | `UpdateProfileDto` excludes email; no re-verification flow |
 | Email verification | No model or endpoint |
 | Avatar | No field, upload, or storage |
-| Session / device management | `RefreshSession` stores user agent/IP, but no list/revoke endpoint |

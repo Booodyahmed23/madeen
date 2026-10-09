@@ -155,4 +155,38 @@ void main() {
     expect(request.path, '/users/me');
     expect(request.data, {'password': 'secret'});
   });
+
+  test('signed-in devices use /auth/sessions', () async {
+    final source = build((options) {
+      if (options.method == 'GET') {
+        return _json(200, [
+          {
+            'id': 's1',
+            'userAgent': 'MADEEN (android; 14)',
+            'ipAddress': '1.2.3.4',
+            'lastActiveAt': '2026-10-09T12:00:00.000Z',
+            'expiresAt': '2026-10-16T12:00:00.000Z',
+            'current': true,
+          },
+        ]);
+      }
+      if (options.path.endsWith('revoke-others')) {
+        return _json(200, {'revoked': 2});
+      }
+      return _json(204, null);
+    });
+
+    final sessions = await source.listSessions();
+    expect(sessions.single.isCurrent, isTrue);
+    expect(sessions.single.lastActiveAt, DateTime.utc(2026, 10, 9, 12));
+
+    await source.revokeSession('s9');
+    expect(await source.revokeOtherSessions(), 2);
+
+    expect(adapter.requests.map((r) => '${r.method} ${r.path}'), [
+      'GET /auth/sessions',
+      'DELETE /auth/sessions/s9',
+      'POST /auth/sessions/revoke-others',
+    ]);
+  });
 }

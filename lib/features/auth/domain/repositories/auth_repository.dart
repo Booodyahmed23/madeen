@@ -1,5 +1,6 @@
 import '../../../../core/error/result.dart';
 import '../entities/auth_session.dart';
+import '../entities/device_session.dart';
 import '../entities/auth_user.dart';
 
 abstract class AuthRepository {
@@ -61,4 +62,13 @@ abstract class AuthRepository {
   /// already ended every session, and the local session is cleared — no
   /// logout call follows.
   Future<Result<void>> deleteAccount(String password);
+
+  /// Devices where the student is signed in (contract §A1).
+  Future<Result<List<DeviceSession>>> getDeviceSessions();
+
+  /// Signs one other device out immediately.
+  Future<Result<void>> signOutDevice(String sessionId);
+
+  /// Signs every other device out; returns how many.
+  Future<Result<int>> signOutOtherDevices();
 }

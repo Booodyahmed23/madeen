@@ -5,6 +5,7 @@ import '../../../../core/error/result.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../domain/entities/auth_session.dart';
+import '../../domain/entities/device_session.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_data_source.dart';
@@ -156,6 +157,18 @@ class AuthRepositoryImpl implements AuthRepository {
     await _remote.deleteAccount(password);
     await _secureStorage.clear();
   });
+
+  @override
+  Future<Result<List<DeviceSession>>> getDeviceSessions() =>
+      _guard(_remote.listSessions);
+
+  @override
+  Future<Result<void>> signOutDevice(String sessionId) =>
+      _guard(() => _remote.revokeSession(sessionId));
+
+  @override
+  Future<Result<int>> signOutOtherDevices() =>
+      _guard(_remote.revokeOtherSessions);
 
   Future<AuthSession> _persistAndLoadUser(AuthTokensModel tokens) async {
     await _secureStorage.saveRefreshToken(tokens.refreshToken);

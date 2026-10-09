@@ -1,4 +1,7 @@
+import 'dart:io' show Platform;
+
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/app_config.dart';
@@ -6,12 +9,22 @@ import 'api_exception.dart';
 import 'auth_interceptor.dart';
 import 'auth_session_callbacks.dart';
 
+/// How this app names itself to the API — shown on the student's
+/// "Signed-in devices" list (contract §A1), instead of Dart's default
+/// `Dart/x.y (dart:io)`.
+String appUserAgent() {
+  if (kIsWeb) return 'MADEEN';
+  return 'MADEEN (${Platform.operatingSystem}; '
+      '${Platform.operatingSystemVersion})';
+}
+
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(
     BaseOptions(
       baseUrl: AppConfig.apiBaseUrl,
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 15),
+      headers: {if (!kIsWeb) 'User-Agent': appUserAgent()},
     ),
   );
 

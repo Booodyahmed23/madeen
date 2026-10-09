@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../domain/entities/device_session.dart';
 
 const _refreshCookieName = 'refresh_token';
 
@@ -202,7 +203,34 @@ class AuthRemoteDataSource {
       parse: (_) {},
     );
   }
+
+  /// `GET /auth/sessions` — every device signed in, most recent first.
+  Future<List<DeviceSession>> listSessions() => _apiClient.get(
+    '/auth/sessions',
+    parse: (data) => [
+      for (final json in data as List)
+        _sessionFromJson(json as Map<String, dynamic>),
+    ],
+  );
+
+  /// `DELETE /auth/sessions/:id` — that device is signed out at once.
+  Future<void> revokeSession(String sessionId) =>
+      _apiClient.delete('/auth/sessions/$sessionId', parse: (_) {});
+
+  /// `POST /auth/sessions/revoke-others` — returns how many were signed out.
+  Future<int> revokeOtherSessions() => _apiClient.post(
+    '/auth/sessions/revoke-others',
+    parse: (data) => ((data as Map<String, dynamic>)['revoked'] as num).toInt(),
+  );
 }
+
+DeviceSession _sessionFromJson(Map<String, dynamic> json) => DeviceSession(
+  id: json['id'] as String,
+  userAgent: json['userAgent'] as String? ?? '',
+  ipAddress: json['ipAddress'] as String?,
+  lastActiveAt: DateTime.parse(json['lastActiveAt'] as String),
+  isCurrent: json['current'] as bool? ?? false,
+);
 
 final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
   return AuthRemoteDataSource(ref.watch(apiClientProvider));

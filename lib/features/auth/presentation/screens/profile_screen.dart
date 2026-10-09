@@ -16,10 +16,10 @@ import '../widgets/auth_error_banner.dart';
 import '../widgets/logout_confirmation.dart';
 
 /// The signed-in user's own profile. Only what the backend supports is
-/// editable — first and last name via `PATCH /users/me`; password change
-/// and account deletion open their own screens. Email is shown read-only;
-/// email change, avatar and session management have no backend endpoints,
-/// so they are deliberately not offered here (see features/auth/README.md).
+/// editable — first and last name via `PATCH /users/me`; password change,
+/// signed-in devices and account deletion open their own screens. Email is
+/// shown read-only; email change and avatar have no backend endpoints, so
+/// they are deliberately not offered here (see features/auth/README.md).
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
@@ -296,6 +296,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             icon: Icons.lock_outline,
                             title: l10n.profileChangePassword,
                             onTap: () => context.push(AppRoutes.changePassword),
+                          ),
+                          _SettingsRow(
+                            icon: Icons.devices_outlined,
+                            title: l10n.profileSignedInDevices,
+                            onTap: () =>
+                                context.push(AppRoutes.signedInDevices),
                           ),
                           _SettingsRow(
                             icon: Icons.delete_outline,

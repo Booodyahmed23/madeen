@@ -37,6 +37,7 @@ String? _messageForCode(
     'WRONG_CURRENT_PASSWORD' => l10n.errorWrongCurrentPassword,
     'SAME_PASSWORD' => l10n.errorSamePassword,
     'ADMIN_SELF_DELETE' => l10n.errorAdminSelfDelete,
+    'SESSION_UNKNOWN' => l10n.errorSessionUnknown,
     'NOT_FOUND' => l10n.errorNotFound,
     'COUPON_INVALID' => l10n.errorCouponInvalid,
     'COUPON_NOT_ACTIVE' => l10n.errorCouponNotActive,

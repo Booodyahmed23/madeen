@@ -1229,5 +1229,49 @@
   "reminderNotificationStudyBody": "It's time for your study session.",
   "@reminderNotificationStudyBody": {},
   "reminderNotificationExamBody": "Time to prepare for your exam.",
-  "@reminderNotificationExamBody": {}
+  "@reminderNotificationExamBody": {},
+  "profileSignedInDevices": "Signed-in devices",
+  "@profileSignedInDevices": {},
+  "devicesTitle": "Signed-in devices",
+  "@devicesTitle": {},
+  "devicesIntro": "Devices signed in to your account. Signing a device out ends its session right away.",
+  "@devicesIntro": {},
+  "devicesThisDevice": "This device",
+  "@devicesThisDevice": {},
+  "devicesLastActive": "Last active {date}",
+  "@devicesLastActive": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "devicesSignOut": "Sign out",
+  "@devicesSignOut": {},
+  "devicesSignOutAll": "Sign out all other devices",
+  "@devicesSignOutAll": {},
+  "devicesSignOutConfirmTitle": "Sign out this device?",
+  "@devicesSignOutConfirmTitle": {},
+  "devicesSignOutConfirmMessage": "{device} will be signed out right away.",
+  "@devicesSignOutConfirmMessage": {
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "devicesSignOutAllConfirmTitle": "Sign out all other devices?",
+  "@devicesSignOutAllConfirmTitle": {},
+  "devicesSignOutAllConfirmMessage": "Every device except this one will be signed out right away.",
+  "@devicesSignOutAllConfirmMessage": {},
+  "devicesSignedOutCount": "{count, plural, =0{No other devices were signed in.} =1{1 device signed out.} other{{count} devices signed out.}}",
+  "@devicesSignedOutCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errorSessionUnknown": "We couldn't find your session. Please log in again.",
+  "@errorSessionUnknown": {}
 }

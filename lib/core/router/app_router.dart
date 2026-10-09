@@ -10,6 +10,7 @@ import '../../features/auth/presentation/providers/auth_notifier.dart';
 import '../../features/auth/presentation/providers/auth_state.dart';
 import '../../features/auth/presentation/screens/change_password_screen.dart';
 import '../../features/auth/presentation/screens/delete_account_screen.dart';
+import '../../features/auth/presentation/screens/signed_in_devices_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/profile_screen.dart';
@@ -59,6 +60,7 @@ abstract final class AppRoutes {
   static const profile = '/profile';
   static const changePassword = '/profile/change-password';
   static const deleteAccount = '/profile/delete-account';
+  static const signedInDevices = '/profile/devices';
   static const plans = '/plans';
   static const login = '/login';
   static const register = '/register';
@@ -243,6 +245,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.deleteAccount,
         builder: (context, state) => const DeleteAccountScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.signedInDevices,
+        builder: (context, state) => const SignedInDevicesScreen(),
       ),
       GoRoute(
         path: AppRoutes.plans,
