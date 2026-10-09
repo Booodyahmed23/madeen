@@ -17,9 +17,9 @@ pages are a working reference for every flow in Part A.
 
 | Area | Status |
 |---|---|
-| Everything in Part A (auth incl. account deletion, curriculum, study, exams, results incl. overview, plans, coupons, health) | ✅ Available — integrate now |
-| Notifications and study reminders (Part B) | ⏳ Not available yet — stay on mock data |
-| Push devices (Part B) | ⏳ Not available yet — stay on mock data |
+| Everything in Part A (auth incl. account deletion and signed-in devices, curriculum, study, exams, results incl. overview, plans, coupons, health) | ✅ Available — integrate now |
+| Notifications and study reminders (A9) | ✅ Available — integrate now |
+| Push notifications (A10) | ✅ Available — integrate now (needs the app id change in A10) |
 | AI analysis, AI tutor, courses | V2 — not in V1 |
 
 When a Part B module becomes available, its section here is updated and its
@@ -42,17 +42,17 @@ not part of this contract (see "Out of scope — V2").
 | G2 | Error envelope | API errors: `{ statusCode, error, message: string \| string[], code?, details?, path, timestamp }`. **No `requestId`.** Add `code` and `details` to `ApiException` and drop `requestId`. Map `code` to localized messages in `failure_messages.dart`. | `api_exception.dart`, `api_client.dart`, `core/error/*` |
 | G3 | Pagination | Lists return `{ data: T[], meta: { page, limit, total, totalPages } }`. Query `page` (≥1) and `limit` (1–100, default 20). There is no `offset`. Add a shared `Paginated<T>` model; "has more" means `page < totalPages`. | new `core/network/paginated.dart` |
 | G4 | Unknown fields | The API rejects **any** unknown body or query field with `400`. Send only the fields listed here. | all remote data sources |
-| G5 | Auth retry rule | `AuthInterceptor` currently skips refresh-and-retry for every `/auth/` path. Skip it **only** for `/auth/login`, `/auth/register`, `/auth/refresh`, `/auth/logout` and `/auth/password-reset/*`. `/auth/me` and `/auth/change-password` must refresh and retry like any other call. | `auth_interceptor.dart` |
+| G5 | Auth retry rule | `AuthInterceptor` currently skips refresh-and-retry for every `/auth/` path. Skip it **only** for `/auth/login`, `/auth/register`, `/auth/refresh`, `/auth/logout` and `/auth/password-reset/*`. `/auth/me`, `/auth/change-password` and `/auth/sessions*` must refresh and retry like any other call. | `auth_interceptor.dart` |
 | G6 | Enums | API enums are UPPER_SNAKE: `EASY/MEDIUM/HARD`, `IMMEDIATE/DEFERRED`, `IN_PROGRESS/PAUSED/COMPLETED`, `SUBMITTED/EXPIRED`, `STUDY/EXAM`, `USER/ADMIN`. Map them in the data layer only. | models |
-| G7 | Language | Curriculum, questions and choices are **single-language** (as authored). There is no `locale` parameter on existing endpoints. Show text as-is; UI chrome stays localized. | — |
+| G7 | Language | Curriculum, questions and choices are **single-language** (as authored). There is no `locale` parameter on existing endpoints. Show text as-is; UI chrome stays localized. Notification texts are the exception: they come in English or Arabic based on the `Accept-Language` header (see A9). | `api_client.dart` |
 | G8 | Entitlement | `403` with message `An active subscription is required` (or `No active subscription covers one or more selected topics`) comes back when **starting** a study session or exam. Map it to a "no access" failure that opens the Plans screen. | `failure_mapper.dart` |
 | G9 | Rate limits | `429` limits: login 10/min, register 5/min, password reset request 3/min, reset confirm 5/min, change password 5/min, coupon validate 10/min, coupon redeem 5/min, study and exam creation 20 per 10 min. | — |
 
 Error `code` values the app should translate: `WRONG_CURRENT_PASSWORD`,
 `SAME_PASSWORD`, `NOT_FOUND`, `COUPON_INVALID`, `COUPON_NOT_ACTIVE`,
 `COUPON_WRONG_PLAN`, `COUPON_EXHAUSTED`, `COUPON_ALREADY_USED`,
-`COUPON_NOT_FREE`, `PLAN_UNAVAILABLE`. When Part B ships, also
-`REMINDER_LIMIT_REACHED` (`details.max`) and `INVALID_CUSTOM_DAYS`. Show the
+`COUPON_NOT_FREE`, `PLAN_UNAVAILABLE`, `REMINDER_LIMIT_REACHED`
+(`details.max`) and `INVALID_CUSTOM_DAYS`. Show the
 generic message for any code the app does not know.
 
 ---
@@ -87,11 +87,23 @@ A mobile client is not a browser, so it handles the cookie by hand:
 | `GET /users/me` | `GET /auth/me` | — | `200` `{ id, email, firstName, lastName, role }` |
 | `PATCH /users/me` | same | `{ firstName?, lastName? }` | `200` `{ id, email, firstName, lastName, role, isActive, createdAt, updatedAt }` |
 | *(none)* | `POST /auth/change-password` | `{ currentPassword, newPassword (8–200) }` | `200` `{ accessToken }` + new cookie (other devices are signed out). `400` code `WRONG_CURRENT_PASSWORD`; `400` code `SAME_PASSWORD` when the new password equals the current one |
+| *(none)* | `GET /auth/sessions` | — | `200` `[{ id, userAgent, ipAddress, lastActiveAt, expiresAt, current }]`, most recent first |
+| *(none)* | `DELETE /auth/sessions/:id` | — | `204`. `404` code `NOT_FOUND` for an unknown or already signed-out session |
+| *(none)* | `POST /auth/sessions/revoke-others` | — | `200` `{ "revoked": 2 }`. `400` code `SESSION_UNKNOWN` (rare: sign in again) |
 | *(none)* | `DELETE /users/me` | `{ password }` | `204`. `400` code `WRONG_CURRENT_PASSWORD`; `403` code `ADMIN_SELF_DELETE` for admin accounts; `429` after 5 tries a minute |
 
 ⚠️ **`GET /users/me` does not exist.** The request falls into the admin-only
 `GET /users/:id` route and returns **403** for every student. Load the profile
 with `GET /auth/me`. Only `PATCH /users/me` and `DELETE /users/me` live under `/users/me`.
+
+**Signed-in devices (`/auth/sessions`).** One row per device where the
+student is signed in; `current` marks this device. `lastActiveAt` is the
+device's last sign-in or token refresh. A session's `id` changes each time
+that device refreshes its token, so always delete using the id from a fresh
+list. Signing a device out (one, or "all others") ends it **immediately**:
+that device's next request gets `401`, its refresh gets `401`, and it lands
+on Login. The same happens to the current device after logout, and to other
+devices after a password change.
 
 **Account deletion (`DELETE /users/me`).** Required in-app by the App Store
 and Google Play for apps that offer sign-up. The account is anonymised and
@@ -108,6 +120,16 @@ too), and study history stays only as anonymous statistics.
 - Add a Change Password screen and remove it from the "blocked" table
   in `features/auth/README.md`. After success, save the new access token and
   the new `refresh_token` cookie (the old one is revoked).
+- Add a **Signed-in devices** screen under Profile: list `GET /auth/sessions`
+  (show `userAgent` as the device name, `lastActiveAt`, a "This device" badge
+  for `current`), a "Sign out" action per other device
+  (`DELETE /auth/sessions/:id`, then reload the list), and "Sign out all other
+  devices" (`POST /auth/sessions/revoke-others`). Signing out `current` from
+  here equals logging out. Remove "Session / device management" from the
+  blocked table in `features/auth/README.md`.
+- When a refresh returns `401` (for example because this device was signed
+  out from another one), clear the local session and go to Login; this is the
+  existing `onSessionExpired` path.
 - Add **Delete account** to Profile: a confirmation screen that explains it
   cannot be undone and asks for the password, then `DELETE /users/me`. On
   `204`, clear the local session (tokens, cached data, scheduled local
@@ -200,9 +222,12 @@ Session object (returned by every study endpoint):
 }
 ```
 
-Reveal rule: a question is revealed when it has been answered **and**
-(`feedbackMode = IMMEDIATE` **or** `status = COMPLETED`). Revealed questions
-carry `isCorrect`, `question.explanation` and `choices[].isCorrect`.
+Reveal rule: while the session is not completed, a question is revealed
+only when it has been answered **and** `feedbackMode = IMMEDIATE`. Once
+`status = COMPLETED`, **every** question is revealed, skipped ones included.
+Revealed questions carry `question.explanation` and `choices[].isCorrect`;
+`isCorrect` is `true`/`false` for answered questions and stays `null` for
+skipped ones.
 
 **Errors**
 - `400` "No published questions match the selection criteria" (zero questions).
@@ -231,7 +256,7 @@ carry `isCorrect`, `question.explanation` and `choices[].isCorrect`.
 | re-answer after feedback | the API allows it. **Lock it on the client**: locked if `status != IN_PROGRESS` or (`IMMEDIATE` and `answeredAt != null`) |
 | `POST …/submit` | `POST …/complete`; on `400` "already completed", `GET` the session and continue |
 | `SessionResult` | derived (see table below) |
-| review list | built from the completed session. **Skipped questions have no correct answer revealed**, so `correctChoiceId` is nullable in review |
+| review list | built from the completed session. Every question, skipped ones included, has its correct choice (`choices.firstWhere(c.isCorrect).id`) and explanation; a skipped question has `selectedChoiceId: null` and `isCorrect: null` |
 | `0 questions → []` | `400`: show the empty-state message |
 
 Derived `SessionResult`:
@@ -420,6 +445,7 @@ needs. The website page in the last column shows a working flow.
 |---|---|---|---|
 | B1 | Change password | `POST /auth/change-password` (A1) | `/account` |
 | B2 | Delete account | `DELETE /users/me` (A1) | — |
+| B2b | Signed-in devices | `GET /auth/sessions`, `DELETE /auth/sessions/:id`, `POST /auth/sessions/revoke-others` (A1) | — |
 | B3 | Plans, access, coupons — `features/subscription` | `GET /plans`, `GET /entitlements/me`, `GET /subscriptions/me`, `POST /coupons/validate`, `POST /coupons/redeem` (A6) | `/plans`, `/dashboard` |
 | B4 | Resume unfinished study sessions and exams | `GET /study/sessions`, `GET /exams/attempts`, `GET /results/history` (rows with `finalizedAt: null`) | `/dashboard`, `/results` |
 | B5 | Pause / resume a study session | `PATCH /study/sessions/:id/pause`, `/resume` (A3) | `/study/<id>` |
@@ -431,19 +457,197 @@ needs. The website page in the last column shows a working flow.
 
 ---
 
+## A9. Notifications and study reminders
+
+Flag: `NOTIFICATIONS_API_AVAILABLE` (covers both). Every route needs the
+bearer token; everything is scoped to the signed-in student.
+
+### Notification object
+
+```json
+{ "id": "…", "type": "PERFORMANCE_UPDATE", "priority": "NORMAL",
+  "title": "Study session complete", "body": "You got 14 of 20 correct (70%).",
+  "action": { "type": "OPEN_ATTEMPT", "targetId": "<session id>", "attemptType": "STUDY" },
+  "isRead": false, "readAt": null, "createdAt": "2026-10-08T08:00:00.000Z" }
+```
+
+- `type`: `STUDY_REMINDER | EXAM_REMINDER | PERFORMANCE_UPDATE | ACHIEVEMENT | SYSTEM`.
+  New types may appear later: an unknown `type` must **not** throw (show it
+  as a plain notice).
+- `priority`: `LOW | NORMAL | HIGH`.
+- `action` is `null` or `{ type, targetId?, attemptType? }` — see the action
+  table below. An unknown `action.type` falls back to showing the details.
+- `title` and `body` are display-ready text in **English or Arabic**, chosen
+  by the `Accept-Language` header the app sends: `ar` (or `ar-SA`, …) →
+  Arabic, anything else or no header → English. Send the app's current
+  language on every notifications call, and refetch the list when the user
+  switches language.
+
+What creates notifications today: finishing a study session, and submitting
+an exam or running out of time on one, create a `PERFORMANCE_UPDATE` that
+opens the attempt. A score of at least 80% on 10 or more questions also
+creates an `ACHIEVEMENT` that opens Performance. Each respects the
+student's preferences.
+
+### Notification endpoints
+
+| Method & path | Request | Response |
+|---|---|---|
+| `GET /notifications` | `page`, `limit`, `unreadOnly?=true`, `type?` (repeat for several: `?type=STUDY_REMINDER&type=EXAM_REMINDER`) | `200` `{ data: Notification[], meta }`, newest first |
+| `GET /notifications/unread-count` | — | `200` `{ "count": 3 }` |
+| `GET /notifications/:id` | — | `200` Notification |
+| `PATCH /notifications/:id/read` | **no body** | `200` Notification (calling it again keeps the first `readAt`) |
+| `POST /notifications/read-all` | — | `200` `{ "updated": 5 }` |
+| `DELETE /notifications/:id` | — | `204` |
+| `GET /notifications/preferences` | — | `200` all seven toggles (all `true` until changed) |
+| `PATCH /notifications/preferences` | any subset of the seven toggles | `200` all seven toggles |
+
+The seven toggles: `studyReminders`, `dailyStudyReminders`, `examReminders`,
+`simulationReminders`, `performanceUpdates`, `achievements`,
+`systemNotifications`. `dailyStudyReminders` and `simulationReminders` are
+for the app's own local reminders; the app applies them on the device.
+
+Errors: `404` code `NOT_FOUND` for an unknown id (or one that belongs to
+someone else); `400` for an id that is not a UUID, an unknown `type`, or any
+unknown body field (for example `aiRecommendations`).
+
+### Study reminder object and endpoints
+
+Reminders **fire on the device** as local notifications; the API only stores
+them so they sync across devices and survive a reinstall. Max **20** per
+student, so the list is a plain array (not paginated).
+
+```json
+{ "id": "…", "title": "Daily CMA practice", "enabled": true, "hour": 7, "minute": 30,
+  "repeat": "EVERY_DAY", "customDays": [], "notificationType": "STUDY_REMINDER",
+  "createdAt": "…", "updatedAt": "…" }
+```
+
+| Method & path | Request | Response |
+|---|---|---|
+| `GET /study-reminders` | — | `200` `Reminder[]`, ordered by `hour`, `minute` |
+| `POST /study-reminders` | `{ title (1–100), enabled? (default true), hour (0–23), minute (0–59), repeat, customDays?, notificationType? }` | `201` Reminder |
+| `PATCH /study-reminders/:id` | any subset of the create fields (the on/off switch sends `{ "enabled": false }` alone) | `200` Reminder |
+| `DELETE /study-reminders/:id` | — | `204` |
+
+- `repeat`: `ONE_TIME | EVERY_DAY | WEEKDAYS | WEEKENDS | CUSTOM`.
+- `customDays`: unique `MON`…`SUN`; required (non-empty) for `CUSTOM`, empty
+  for every other `repeat`. Changing `repeat` away from `CUSTOM` without
+  sending `customDays` clears them.
+- `notificationType`: `STUDY_REMINDER` (default) or `EXAM_REMINDER`.
+- `hour`/`minute` are **device local time**. A `ONE_TIME` reminder fires at
+  the next `hour:minute`; the app then sends `{ "enabled": false }`.
+
+Errors: `400` code `REMINDER_LIMIT_REACHED` with `details.max = 20` when
+creating a 21st; `400` code `INVALID_CUSTOM_DAYS` when the days rule is
+broken; `404` code `NOT_FOUND` for an unknown id.
+
+### App changes
+
+| Area | Change |
+|---|---|
+| List | Parse `{ data, meta }` (was a plain array); load more pages on scroll |
+| Filter chips | Study → `type=STUDY_REMINDER&type=EXAM_REMINDER`, Performance → `type=PERFORMANCE_UPDATE&type=ACHIEVEMENT`, System → `type=SYSTEM`, Unread → `unreadOnly=true`; drop the in-memory filter and the AI chip (V2) |
+| Details | Use the loaded item, or `GET /notifications/:id` when it is not loaded (deep links, push taps later) |
+| Mark read | `PATCH …/read` with **no body** (today it sends `{isRead: true}`) |
+| Item model | Add `readAt`; `action` may be `null`; read `attemptType` for `OPEN_ATTEMPT`; unknown `type` must not throw |
+| Language | Send `Accept-Language: ar` or `en` (the app's current language) on `/notifications` calls — simplest is to set it on every request in `ApiClient`; other endpoints ignore it |
+| Preferences | 7 keys: remove `aiRecommendations` (sending it returns `400`) and hide its toggle; `PATCH` may send only the changed keys |
+| Reminders | Parse `updatedAt`; show `REMINDER_LIMIT_REACHED` / `INVALID_CUSTOM_DAYS` messages; replace the mock scheduler with real local notifications and reschedule all reminders after login, after each sync and on app start |
+| Account deletion | Cancel all scheduled local reminders on the device (the API deletes the stored ones) |
+
+---
+
+## A10. Push notifications
+
+Flag: `PUSH_API_AVAILABLE`. Push uses **Firebase Cloud Messaging** (it also
+delivers to iOS through APNs). Every notification in A9 is also sent as a
+push to the student's registered phones; the inbox (A9) stays the source of
+truth.
+
+**Status (2026-10-09): sections 1 and 2 are already done in the project**
+— app id `com.madeen.app` on Android and iOS, `google-services.json`,
+`GoogleService-Info.plist` (in the Runner target), the Google services Gradle
+plugin, `firebase_core` + `firebase_messaging`, `lib/firebase_options.dart`,
+`Firebase.initializeApp` in `main.dart`, the Android 13+ notification
+permission and iOS *Background Modes → Remote notifications*. Still to do:
+the iOS **Push Notifications** capability in Xcode (needs the team's Apple
+account), asking for permission at runtime, and sections 3–4.
+
+### 1. Change the app id to `com.madeen.app` (first)
+
+The Firebase project (`madeen-4d6a9`) has the Android and iOS apps registered
+as **`com.madeen.app`**, and the app id can't change after the first store
+release, so change it now:
+
+- Android: `android/app/build.gradle(.kts)` → `applicationId` (and
+  `namespace`, if present) = `com.madeen.app`. Move `MainActivity` to the
+  matching package folder if the namespace changes.
+- iOS: Xcode → Runner target → Signing & Capabilities → Bundle Identifier =
+  `com.madeen.app`; RunnerTests → `com.madeen.app.RunnerTests`.
+
+### 2. Connect Firebase
+
+- In the project folder: `flutterfire configure --project=madeen-4d6a9`
+  (pick android and ios). It writes `lib/firebase_options.dart`,
+  `android/app/google-services.json` and `ios/Runner/GoogleService-Info.plist`
+  (added to the Runner target). These files are client config and can be
+  committed.
+- Packages: `firebase_core`, `firebase_messaging`.
+- Skip the native setup steps the Firebase console shows (Gradle snippets,
+  Swift Package Manager, `FirebaseApp.configure()`); FlutterFire handles them.
+- iOS: Xcode → Runner → **Push Notifications** capability and **Background
+  Modes → Remote notifications**. iOS pushes also need the APNs key uploaded
+  in Firebase → Project settings → Cloud Messaging (account owner).
+- Android 13+: ask for the notification permission (`POST_NOTIFICATIONS`)
+  before registering; iOS: `requestPermission()`.
+
+### 3. Endpoints
+
+| Method & path | Request | Response |
+|---|---|---|
+| `POST /devices` | `{ token: string (1–4096), platform: "IOS" \| "ANDROID", locale?: "en" \| "ar" }` | `201` `{ id, platform, createdAt }` |
+| `POST /devices/unregister` | `{ token }` | `204` (always, even if unknown) |
+
+- **Register** after sign-in, on every app start while signed in, on
+  `onTokenRefresh`, and when the user changes the app language (send the new
+  `locale`; pushes are written in it). Registering again is safe: the same
+  token is updated, not duplicated, and a token used by a previous account on
+  the same phone moves to the current one.
+- **Unregister** on logout **before** `POST /auth/logout` (logout itself can't
+  remove the token), and before `DELETE /users/me`.
+- Unknown fields → `400`; no token → `401`.
+
+### 4. Receiving a push
+
+- `notification.title` / `notification.body`: display-ready text in the
+  device's `locale`.
+- `data`: `{ notificationId, type, action }` — all strings; `action` is JSON
+  (`{"type":"OPEN_ATTEMPT","targetId":"…","attemptType":"STUDY"}`) or `"null"`.
+- On tap (foreground, background or from terminated): parse `action` and
+  route through the same resolver as the inbox (A9); with `"null"` or an
+  unknown action, open `GET /notifications/:notificationId`. Mark it read
+  with `PATCH /notifications/:id/read` when shown.
+- In the foreground, refresh the unread badge (`GET /notifications/unread-count`)
+  instead of showing a system banner, or show an in-app banner.
+
+### App changes
+
+| Area | Change |
+|---|---|
+| App id | `com.madeen.app` on Android and iOS (section 1) |
+| Firebase | `flutterfire configure`, packages, iOS capabilities, permissions (section 2) |
+| `PushNotificationHandler` | Replace the mock: get the FCM token, `POST /devices`, listen to `onTokenRefresh`, `POST /devices/unregister` on logout and account deletion |
+| Tap handling | `onMessageOpenedApp` + `getInitialMessage` → route by `data.action` |
+| Flags | Add `PUSH_API_AVAILABLE` to `AppConfig` and every `env/*.json` |
+
+---
+
 # Part B — endpoints not available yet
 
-Keep each module on its mock data source, with its flag off, until the
-"API availability" table above marks it available. Prepare the app changes
-below so the switch is only turning the flag on.
+None: every endpoint the app needs in V1 is available.
 
-| Module | Flag | App changes for when it is available |
-|---|---|---|
-| Notifications | `NOTIFICATIONS_API_AVAILABLE` | List is paginated `{ data, meta }` (was a plain array): load more pages on scroll; the category chips send `type` (repeatable, e.g. `?type=STUDY_REMINDER&type=EXAM_REMINDER`) and the Unread chip sends `unreadOnly=true` instead of filtering in memory; the details page fetches `GET /notifications/:id` when the item is not in the loaded list (also used by push taps); `PATCH /notifications/:id/read` has **no body**; `read-all` returns `{ updated }`; `DELETE` returns `204`; preferences `PATCH` may send only the changed keys; the item gains `readAt`; `action` may be `null` and uses the new type names below; an unknown notification `type` must not throw (show it as a plain notice); the `AI_RECOMMENDATION` type and the `aiRecommendations` preference are removed (V2), so preferences have 7 keys and the AI toggle is hidden |
-| Study reminders | (same flag) | Same fields as today plus `updatedAt`; handle `400 REMINDER_LIMIT_REACHED` (max 20) and `INVALID_CUSTOM_DAYS`. Reminders **fire on the device** (local notifications); the server only stores them. `hour`/`minute` are device local time; a `ONE_TIME` reminder fires at the next `hour:minute` and the app then PATCHes `{ enabled: false }`. Reschedule all local reminders after login, after each sync and on app start |
-| Push devices | new `PUSH_API_AVAILABLE` | `POST /devices { token, platform: IOS\|ANDROID, locale }` after login and on token refresh; `POST /devices/unregister { token }` on logout, **before** `POST /auth/logout` (logout is public, so it cannot remove tokens itself) |
-
-Notification `action.type` renames:
+Notification `action.type` renames (for A9):
 
 | Old wire value | New wire value |
 |---|---|
@@ -481,8 +685,9 @@ not exist in V1, and the mobile app does not integrate them now:
 5. A3 study sessions.
 6. A4 exams.
 7. A5 performance (replaces local attempt recording; uses `/results/overview` and the `type` filter).
-8. The remaining A8 items.
-9. Part B modules (notifications, reminders, push), as each becomes available.
+8. A9 notifications and study reminders.
+9. The remaining A8 items.
+10. A10 push notifications (change the app id first).
 
 **Definition of done for each step:** the app only calls paths listed in
 this document, sends only the listed fields (unknown ones are rejected with
