@@ -1,3 +1,5 @@
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -36,3 +38,14 @@ class LocaleNotifier extends Notifier<Locale?> {
 final localeProvider = NotifierProvider<LocaleNotifier, Locale?>(
   LocaleNotifier.new,
 );
+
+/// The language code the API should write in: the app's chosen language,
+/// else the device's — `ar` for Arabic, `en` for anything else.
+String apiLanguageCode(Locale? appLocale) {
+  // PlatformDispatcher, not WidgetsBinding: works before the binding exists
+  // (and in plain unit tests).
+  final code =
+      appLocale?.languageCode ??
+      PlatformDispatcher.instance.locale.languageCode;
+  return code == 'ar' ? 'ar' : 'en';
+}
