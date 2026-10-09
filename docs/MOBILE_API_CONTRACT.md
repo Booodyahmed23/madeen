@@ -591,8 +591,12 @@ release, so change it now:
 - In the project folder: `flutterfire configure --project=madeen-4d6a9`
   (pick android and ios). It writes `lib/firebase_options.dart`,
   `android/app/google-services.json` and `ios/Runner/GoogleService-Info.plist`
-  (added to the Runner target). These files are client config and can be
-  committed.
+  (added to the Runner target). **Don't commit them**: they hold the Firebase
+  API keys and are git-ignored. The app reads its Firebase options at build
+  time from a git-ignored `env/firebase.json` (copy
+  `env/firebase.example.json`, fill it from the Firebase console) and builds
+  with `--dart-define-from-file=env/dev.json --dart-define-from-file=env/firebase.json`.
+  Without it, the app runs without push.
 - Packages: `firebase_core`, `firebase_messaging`.
 - Skip the native setup steps the Firebase console shows (Gradle snippets,
   Swift Package Manager, `FirebaseApp.configure()`); FlutterFire handles them.
