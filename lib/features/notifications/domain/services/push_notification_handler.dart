@@ -1,28 +1,25 @@
-import '../entities/notification_item.dart';
+import '../entities/push_message.dart';
 
-/// Mobile-side contract for a future push notification pipeline (FCM/APNs)
-/// — **no backend push infrastructure exists yet** (see NOTIFICATIONS_API_
-/// REQUIREMENTS.md's "Push notification status"). This interface exists so
-/// the eventual real implementation (registering with FCM/APNs, wiring
-/// their platform channels) is a drop-in replacement for
-/// `../../data/services/mock_push_notification_handler.dart`, with no
-/// change anywhere else in the app: the UI and `NotificationsRepository`
-/// never call this directly — only the composition root would, once a real
-/// implementation exists, to feed a freshly-arrived push straight into the
-/// same [NotificationItem] shape the REST/mock list already uses.
+/// Push notifications (contract §A10), independent of the provider: the
+/// app composes this — registering the device, unregistering it before
+/// sign-out, and routing taps — and never touches Firebase directly.
 abstract class PushNotificationHandler {
-  /// Registers this device with the push provider and returns the token
-  /// the backend would need to target it — `null` when no provider is
-  /// configured (always the case for the mock implementation).
-  Future<String?> registerDevice();
+  /// Asks for permission if needed, then registers this device's push token
+  /// with the server in [locale] (`en` | `ar`, the language pushes are
+  /// written in). Safe to repeat — on every start, sign-in or language
+  /// change. Keeps the server updated when the token rotates.
+  Future<void> register({required String locale});
 
-  /// Reverses [registerDevice] (e.g. on logout) so a signed-out device
-  /// stops receiving pushes meant for the previous account.
-  Future<void> unregisterDevice();
+  /// Stops pushes to this device for the signed-in account. Must run while
+  /// the session is still valid (before logout or account deletion).
+  Future<void> unregister();
 
-  /// Called by the composition root when a push arrives, already parsed
-  /// into this app's own [NotificationItem] shape — never a raw provider
-  /// payload, so nothing outside this one call site needs to know which
-  /// push provider is in use.
-  void onNotificationReceived(NotificationItem notification);
+  /// Pushes tapped while the app was running in the background.
+  Stream<PushMessage> get taps;
+
+  /// The push that launched the app from terminated, if any — read once.
+  Future<PushMessage?> takeInitialTap();
+
+  /// Pushes that arrived while the app was open (no system banner).
+  Stream<PushMessage> get foregroundMessages;
 }

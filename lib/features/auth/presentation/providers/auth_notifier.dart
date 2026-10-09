@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/app_failure.dart';
 import '../../../../core/error/result.dart';
 import '../../../../core/network/auth_session_callbacks.dart';
+import '../../../../core/session/sign_out_hooks.dart';
 import '../../../../core/storage/local_user_data.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -100,12 +101,28 @@ class AuthNotifier extends Notifier<AuthState> {
     );
   }
 
-  /// Signs out immediately — the UI never waits on the server-side
-  /// revocation, which the repository performs best-effort after clearing
-  /// local storage.
+  /// Signs out after the sign-out hooks (a few seconds at most — e.g.
+  /// unregistering push while the session still works); the UI never waits
+  /// on the server-side revocation, which the repository performs
+  /// best-effort after clearing local storage.
   Future<void> logout() async {
+    if (ref.read(signOutHooksProvider).isNotEmpty) await _runSignOutHooks();
     state = const AuthUnauthenticated();
     await _repository.logout();
+  }
+
+  /// Each hook gets a few seconds at most, and a failing one never blocks
+  /// signing out.
+  Future<void> _runSignOutHooks({bool cancelled = false}) async {
+    for (final hook in ref.read(signOutHooksProvider)) {
+      final run = cancelled ? hook.cancelled : hook.before;
+      if (run == null) continue;
+      try {
+        await run().timeout(const Duration(seconds: 3));
+      } catch (_) {
+        // Best-effort: the sign-out goes ahead regardless.
+      }
+    }
   }
 
   Future<Result<void>> forgotPassword(String email) {
@@ -155,7 +172,9 @@ class AuthNotifier extends Notifier<AuthState> {
   /// session.
   Future<Result<void>> deleteAccount(String password) async {
     final current = state;
+    await _runSignOutHooks();
     final result = await _repository.deleteAccount(password);
+    if (result is Failure<void>) await _runSignOutHooks(cancelled: true);
     if (result is Success<void>) {
       if (current is AuthAuthenticated) {
         for (final wipe in ref.read(localUserDataWipersProvider)) {

@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/app.dart';
 import 'app/local_user_data_wipers.dart';
+import 'app/sign_out_hooks.dart';
 import 'core/error/riverpod_retry_policy.dart';
 import 'core/localization/date_digits.dart';
+import 'core/session/sign_out_hooks.dart';
 import 'core/storage/local_user_data.dart';
 import 'core/theme/madeen_fonts.dart';
 import 'firebase_options.dart';
@@ -20,6 +22,7 @@ Future<void> main() async {
       retry: appRetryPolicy,
       overrides: [
         localUserDataWipersProvider.overrideWith(appLocalUserDataWipers),
+        signOutHooksProvider.overrideWith(appSignOutHooks),
       ],
       child: const App(),
     ),

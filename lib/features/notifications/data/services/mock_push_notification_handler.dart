@@ -1,31 +1,26 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../domain/entities/notification_item.dart';
+import '../../domain/entities/push_message.dart';
 import '../../domain/services/push_notification_handler.dart';
 
-/// **No push provider (FCM/APNs) is configured.** [registerDevice] always
-/// returns `null` — there is no backend endpoint to send a token to yet
-/// (see NOTIFICATIONS_API_REQUIREMENTS.md's "Push notification status") —
-/// and [onNotificationReceived] only exists here so a future real
-/// implementation's call sites (composition root wiring, tests) have
-/// something to compile against today.
+/// Push while `PUSH_API_AVAILABLE` is off (or Firebase didn't start): does
+/// nothing — no permission prompt, no API calls, no messages. Records calls
+/// for tests.
 class MockPushNotificationHandler implements PushNotificationHandler {
-  NotificationItem? lastReceived;
+  final registeredLocales = <String>[];
+  var unregisterCalls = 0;
 
   @override
-  Future<String?> registerDevice() async => null;
+  Future<void> register({required String locale}) async =>
+      registeredLocales.add(locale);
 
   @override
-  Future<void> unregisterDevice() async {}
+  Future<void> unregister() async => unregisterCalls++;
 
   @override
-  void onNotificationReceived(NotificationItem notification) {
-    lastReceived = notification;
-  }
+  Stream<PushMessage> get taps => const Stream.empty();
+
+  @override
+  Stream<PushMessage> get foregroundMessages => const Stream.empty();
+
+  @override
+  Future<PushMessage?> takeInitialTap() async => null;
 }
-
-final pushNotificationHandlerProvider = Provider<MockPushNotificationHandler>((
-  ref,
-) {
-  return MockPushNotificationHandler();
-});
