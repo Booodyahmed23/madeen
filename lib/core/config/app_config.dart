@@ -19,12 +19,13 @@ class AppConfig {
 
   static const String _apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:3001/api/v1',
+    defaultValue: 'https://kasbana.net/api/v1',
   );
 
-  /// The API base URL. A `localhost` URL (the dev default) is rewritten to
-  /// `10.0.2.2` on Android, where the emulator reaches the host machine
-  /// through that address rather than its own loopback (contract §G1).
+  /// The API base URL — the test server by default. A `localhost` URL (for a
+  /// backend running on this machine) is rewritten to `10.0.2.2` on Android,
+  /// where the emulator reaches the host machine through that address rather
+  /// than its own loopback (contract §G1).
   static String get apiBaseUrl => resolveApiBaseUrl(_apiBaseUrl);
 
   @visibleForTesting

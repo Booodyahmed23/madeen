@@ -1,7 +1,5 @@
 plugins {
     id("com.android.application")
-    // Firebase config from google-services.json (push notifications).
-    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -51,6 +49,13 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+// google-services.json is git-ignored (it holds the Firebase API key); the
+// app gets its Firebase options from env/firebase.json at build time, so the
+// plugin is only applied when someone keeps the file locally.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 dependencies {

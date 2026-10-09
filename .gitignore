@@ -75,3 +75,8 @@ key.properties
 *.pem
 *.cer
 *.mobileprovision
+
+# Firebase client config (holds API keys) — values go in env/firebase.json
+google-services.json
+GoogleService-Info.plist
+env/firebase.json
