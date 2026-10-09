@@ -4,6 +4,7 @@ import '../../../../core/config/app_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../curriculum/presentation/providers/curriculum_providers.dart';
 import '../../domain/entities/performance_filter.dart';
+import '../../domain/entities/trend_day.dart';
 import '../models/attempt_details_model.dart';
 import '../models/attempt_history_page_model.dart';
 import '../models/performance_overview_model.dart';
@@ -32,6 +33,14 @@ abstract class PerformanceDataSource {
   });
 
   Future<AttemptDetailsModel> getAttemptDetails(String attemptId);
+
+  /// Accuracy per curriculum part — the same entry shape as topics.
+  Future<List<TopicPerformanceModel>> getPartPerformance(
+    PerformanceFilter filter,
+  );
+
+  /// The last [days] days, oldest first, in the device's time zone.
+  Future<List<TrendDay>> getTrend({required int days});
 }
 
 /// The single switch between real and sample Performance Analytics data.

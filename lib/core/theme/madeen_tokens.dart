@@ -30,6 +30,7 @@ class MadeenTokens extends ThemeExtension<MadeenTokens> {
     required this.onHero,
     required this.onHeroMuted,
     required this.heroAccent,
+    required this.dataMark,
     required this.success,
     required this.attention,
     required this.error,
@@ -81,6 +82,10 @@ class MadeenTokens extends ThemeExtension<MadeenTokens> {
   final Color onHeroMuted;
   final Color heroAccent;
 
+  /// Data marks (chart bars) — brass, stepped to keep ≥ 3:1 against
+  /// [surface] and inside the chart lightness band in each mode.
+  final Color dataMark;
+
   final Color success;
   final Color attention;
   final Color error;
@@ -104,6 +109,7 @@ class MadeenTokens extends ThemeExtension<MadeenTokens> {
     onHero: Color(0xFFFFFFFF),
     onHeroMuted: Color(0xFFBEC6E0),
     heroAccent: Color(0xFFF6BC63),
+    dataMark: Color(0xFF805600),
     success: Color(0xFF2D6A4F),
     attention: Color(0xFFB45309),
     error: Color(0xFFBA1A1A),
@@ -129,6 +135,7 @@ class MadeenTokens extends ThemeExtension<MadeenTokens> {
     onHero: Color(0xFFF1F5F9),
     onHeroMuted: Color(0xFF94A3B8),
     heroAccent: Color(0xFFD4A359),
+    dataMark: Color(0xFFB88A45),
     success: Color(0xFF40916C),
     attention: Color(0xFFE08A3C),
     error: Color(0xFFFFB4AB),
@@ -169,6 +176,7 @@ class MadeenTokens extends ThemeExtension<MadeenTokens> {
       onHero: mix(onHero, other.onHero),
       onHeroMuted: mix(onHeroMuted, other.onHeroMuted),
       heroAccent: mix(heroAccent, other.heroAccent),
+      dataMark: mix(dataMark, other.dataMark),
       success: mix(success, other.success),
       attention: mix(attention, other.attention),
       error: mix(error, other.error),

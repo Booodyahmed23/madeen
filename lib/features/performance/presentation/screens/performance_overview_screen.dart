@@ -12,6 +12,7 @@ import '../../../../shared/widgets/madeen/madeen.dart';
 import '../../../../shared/widgets/sample_data_banner.dart';
 import '../providers/performance_providers.dart';
 import '../widgets/accuracy_ring.dart';
+import '../widgets/accuracy_trend_chart.dart';
 import '../widgets/attempt_summary_tile.dart';
 import '../widgets/attempt_type_filter_bar.dart';
 import '../widgets/performance_format.dart';
@@ -45,6 +46,8 @@ class PerformanceOverviewScreen extends ConsumerWidget {
               onRefresh: () async {
                 ref.invalidate(performanceOverviewProvider);
                 ref.invalidate(topicPerformanceProvider);
+                ref.invalidate(partPerformanceProvider);
+                ref.invalidate(performanceTrendProvider);
                 await ref.read(performanceOverviewProvider.future);
               },
               child: ListView(
@@ -153,6 +156,54 @@ class PerformanceOverviewScreen extends ConsumerWidget {
                                 ],
                               ),
                             ),
+                            const SizedBox(height: MadeenSpace.md),
+                            MadeenCard(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  MadeenSectionHeader(
+                                    title: l10n.performanceTrendLabel,
+                                  ),
+                                  const SizedBox(height: MadeenSpace.xs),
+                                  ref
+                                      .watch(performanceTrendProvider)
+                                      .when(
+                                        loading: () =>
+                                            const MadeenLoadingState(),
+                                        error: (_, _) => MadeenEmptyState(
+                                          message: l10n.performanceGenericError,
+                                        ),
+                                        data: (days) =>
+                                            AccuracyTrendChart(days: days),
+                                      ),
+                                ],
+                              ),
+                            ),
+                            ...switch (ref.watch(partPerformanceProvider)) {
+                              AsyncData(value: final parts)
+                                  when parts.isNotEmpty =>
+                                [
+                                  const SizedBox(height: MadeenSpace.md),
+                                  MadeenCard(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        MadeenSectionHeader(
+                                          title: l10n.performanceByPartLabel,
+                                        ),
+                                        MadeenDividedList(
+                                          children: [
+                                            for (final part in parts)
+                                              TopicPerformanceTile(topic: part),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              _ => const <Widget>[],
+                            },
                             const SizedBox(height: MadeenSpace.md),
                             MadeenCard(
                               child: Column(

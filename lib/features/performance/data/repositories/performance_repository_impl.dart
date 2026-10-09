@@ -9,6 +9,7 @@ import '../../domain/entities/attempt_history_page.dart';
 import '../../domain/entities/performance_filter.dart';
 import '../../domain/entities/performance_overview.dart';
 import '../../domain/entities/topic_performance.dart';
+import '../../domain/entities/trend_day.dart';
 import '../../domain/repositories/performance_repository.dart';
 import '../datasources/performance_data_source.dart';
 
@@ -49,6 +50,20 @@ class PerformanceRepositoryImpl implements PerformanceRepository {
   Future<Result<AttemptDetails>> getAttemptDetails(String attemptId) => _guard(
     () async => (await _dataSource.getAttemptDetails(attemptId)).toEntity(),
   );
+
+  @override
+  Future<Result<List<TopicPerformance>>> getPartPerformance({
+    PerformanceFilter filter = const PerformanceFilter(),
+  }) => _guard(
+    () async => [
+      for (final m in await _dataSource.getPartPerformance(filter))
+        m.toEntity(),
+    ],
+  );
+
+  @override
+  Future<Result<List<TrendDay>>> getTrend({int days = 7}) =>
+      _guard(() => _dataSource.getTrend(days: days));
 
   Future<Result<T>> _guard<T>(Future<T> Function() action) async {
     try {

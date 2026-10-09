@@ -7,6 +7,7 @@ import '../../../study_session/data/models/study_session_model.dart';
 import '../../../study_session/domain/entities/study_session.dart';
 import '../../domain/entities/attempt_type.dart';
 import '../../domain/entities/performance_filter.dart';
+import '../../domain/entities/trend_day.dart';
 import '../models/attempt_details_model.dart';
 import '../models/attempt_history_page_model.dart';
 import '../models/attempt_summary_model.dart';
@@ -71,6 +72,45 @@ class PerformanceRemoteDataSource implements PerformanceDataSource {
       parse: (data) => [
         for (final item in data as List)
           _performanceEntry(item as Map<String, dynamic>),
+      ],
+    );
+  }
+
+  @override
+  Future<List<TopicPerformanceModel>> getPartPerformance(
+    PerformanceFilter filter,
+  ) {
+    return _apiClient.get(
+      '/results/performance/parts',
+      queryParameters: _typeQuery(filter),
+      parse: (data) => [
+        for (final item in data as List)
+          _performanceEntry(item as Map<String, dynamic>),
+      ],
+    );
+  }
+
+  /// `tzOffsetMinutes` is east of UTC positive (e.g. 180 for UTC+3), so
+  /// days split at the student's midnight.
+  @override
+  Future<List<TrendDay>> getTrend({required int days}) {
+    return _apiClient.get(
+      '/results/performance/trend',
+      queryParameters: {
+        'days': days,
+        'tzOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
+      },
+      parse: (data) => [
+        for (final item in data as List)
+          () {
+            final json = item as Map<String, dynamic>;
+            return TrendDay(
+              date: DateTime.parse(json['date'] as String),
+              correct: (json['correct'] as num).toInt(),
+              total: (json['total'] as num).toInt(),
+              accuracyPercent: (json['accuracy'] as num?)?.toDouble(),
+            );
+          }(),
       ],
     );
   }

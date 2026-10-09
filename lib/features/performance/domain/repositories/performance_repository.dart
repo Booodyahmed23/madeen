@@ -4,6 +4,7 @@ import '../entities/attempt_history_page.dart';
 import '../entities/performance_filter.dart';
 import '../entities/performance_overview.dart';
 import '../entities/topic_performance.dart';
+import '../entities/trend_day.dart';
 
 /// The mobile app's only window onto Performance Analytics data —
 /// presentation code depends on this interface, never on a concrete data
@@ -35,4 +36,12 @@ abstract class PerformanceRepository {
   });
 
   Future<Result<AttemptDetails>> getAttemptDetails(String attemptId);
+
+  /// Accuracy per curriculum part (contract §A5).
+  Future<Result<List<TopicPerformance>>> getPartPerformance({
+    PerformanceFilter filter = const PerformanceFilter(),
+  });
+
+  /// Daily accuracy for the last [days] days, oldest first.
+  Future<Result<List<TrendDay>>> getTrend({int days = 7});
 }

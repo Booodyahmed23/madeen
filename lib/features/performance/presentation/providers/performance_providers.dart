@@ -7,6 +7,7 @@ import '../../domain/entities/performance_filter.dart';
 import '../../domain/entities/performance_overview.dart';
 import '../../domain/entities/attempt_summary.dart';
 import '../../domain/entities/topic_performance.dart';
+import '../../domain/entities/trend_day.dart';
 import 'performance_filter_provider.dart';
 
 /// Re-fetches whenever [performanceFilterProvider] changes (Riverpod's
@@ -83,6 +84,24 @@ final attemptDetailsProvider = FutureProvider.family
 
 /// `FutureProvider` wants a thrown error for its `AsyncError` state, not a
 /// `Result.failure` — same seam as curriculum_providers.dart's `_unwrap`.
+/// Accuracy per curriculum part, for the selected attempt type.
+final partPerformanceProvider =
+    FutureProvider.autoDispose<List<TopicPerformance>>((ref) async {
+      final filter = ref.watch(performanceFilterProvider);
+      final result = await ref
+          .watch(performanceRepositoryProvider)
+          .getPartPerformance(filter: filter);
+      return _unwrap(result);
+    });
+
+/// Daily accuracy over the last 7 days (every attempt type).
+final performanceTrendProvider = FutureProvider.autoDispose<List<TrendDay>>((
+  ref,
+) async {
+  final result = await ref.watch(performanceRepositoryProvider).getTrend();
+  return _unwrap(result);
+});
+
 T _unwrap<T>(Result<T> result) {
   return result.when(
     success: (value) => value,

@@ -1,5 +1,6 @@
 import '../../domain/entities/attempt_type.dart';
 import '../../domain/entities/performance_filter.dart';
+import '../../domain/entities/trend_day.dart';
 import '../models/attempt_details_model.dart';
 import '../models/attempt_history_page_model.dart';
 import '../models/attempt_summary_model.dart';
@@ -317,5 +318,64 @@ class PerformanceMockDataSource implements PerformanceDataSource {
           attempt.durationSeconds ~/ attempt.totalQuestions,
       topics: topic == null ? const [] : [topic],
     );
+  }
+
+  @override
+  Future<List<TopicPerformanceModel>> getPartPerformance(
+    PerformanceFilter filter,
+  ) async {
+    await Future<void>.delayed(_artificialDelay);
+    if (filter.attemptType == AttemptTypeFilter.examSimulation) {
+      return const [];
+    }
+    return const [
+      TopicPerformanceModel(
+        topicId: 'cma-part-1',
+        topicName: 'Part 1',
+        questionsAttempted: 120,
+        answered: 120,
+        correct: 88,
+        wrong: 32,
+        averageTimePerQuestionSeconds: 52,
+      ),
+      TopicPerformanceModel(
+        topicId: 'cma-part-2',
+        topicName: 'Part 2',
+        questionsAttempted: 40,
+        answered: 40,
+        correct: 22,
+        wrong: 18,
+        averageTimePerQuestionSeconds: 61,
+      ),
+    ];
+  }
+
+  /// A sample week ending today, with a rest day.
+  @override
+  Future<List<TrendDay>> getTrend({required int days}) async {
+    await Future<void>.delayed(_artificialDelay);
+    const sample = [
+      (6, 10),
+      (0, 0),
+      (7, 10),
+      (12, 15),
+      (9, 12),
+      (8, 10),
+      (14, 16),
+    ];
+    final today = DateTime.now();
+    return [
+      for (var i = 0; i < days; i++)
+        () {
+          final (correct, total) =
+              sample[(sample.length - days + i) % sample.length];
+          return TrendDay(
+            date: DateTime(today.year, today.month, today.day - (days - 1 - i)),
+            correct: correct,
+            total: total,
+            accuracyPercent: total == 0 ? null : correct / total * 100,
+          );
+        }(),
+    ];
   }
 }

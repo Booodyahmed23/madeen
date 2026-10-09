@@ -1307,5 +1307,47 @@
   "curriculumPracticeAllMyTopics": "Practice all my topics",
   "@curriculumPracticeAllMyTopics": {},
   "curriculumPracticeAllMyTopicsSubtitle": "Questions from every topic in your plan.",
-  "@curriculumPracticeAllMyTopicsSubtitle": {}
+  "@curriculumPracticeAllMyTopicsSubtitle": {},
+  "performanceByPartLabel": "Performance by part",
+  "@performanceByPartLabel": {},
+  "performanceTrendLabel": "Accuracy, last 7 days",
+  "@performanceTrendLabel": {},
+  "performanceTrendDay": "{day}: {accuracy}% ({correct} of {total})",
+  "@performanceTrendDay": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "accuracy": {
+        "type": "int"
+      },
+      "correct": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "performanceTrendDayEmpty": "{day}: no answers",
+  "@performanceTrendDayEmpty": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "performanceTrendSummary": "{accuracy}% across {count, plural, =1{1 answer} other{{count} answers}}",
+  "@performanceTrendSummary": {
+    "placeholders": {
+      "accuracy": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "performanceTrendEmpty": "No answers in the last 7 days.",
+  "@performanceTrendEmpty": {}
 }

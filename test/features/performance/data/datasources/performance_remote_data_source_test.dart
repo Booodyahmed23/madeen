@@ -193,4 +193,40 @@ void main() {
     expect(details.summary.contentLabel, 'Budgeting +1');
     expect(details.topics, hasLength(2));
   });
+
+  test('parts and the 7-day trend use their endpoints', () async {
+    serve({
+      '/results/performance/parts': [
+        {
+          'id': 'p1',
+          'name': 'Part 1',
+          'correct': 10,
+          'total': 15,
+          'accuracy': 66.7,
+          'avgTimeSeconds': 6,
+        },
+      ],
+      '/results/performance/trend': [
+        {'date': '2026-10-08', 'correct': 2, 'total': 4, 'accuracy': 50},
+        {'date': '2026-10-09', 'correct': 0, 'total': 0, 'accuracy': null},
+      ],
+    });
+
+    final parts = await source.getPartPerformance(
+      const PerformanceFilter(attemptType: AttemptTypeFilter.studySession),
+    );
+    final trend = await source.getTrend(days: 7);
+
+    expect(parts.single.toEntity().wrong, 5);
+    expect(adapter.requests.first.queryParameters, {'type': 'STUDY'});
+    final trendQuery = adapter.requests.last.queryParameters;
+    expect(trendQuery['days'], 7);
+    expect(
+      trendQuery['tzOffsetMinutes'],
+      DateTime.now().timeZoneOffset.inMinutes,
+    );
+    expect(trend.first.accuracyPercent, 50);
+    expect(trend.last.accuracyPercent, isNull);
+    expect(trend.first.date, DateTime(2026, 10, 8));
+  });
 }
