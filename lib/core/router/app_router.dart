@@ -91,6 +91,9 @@ abstract final class AppRoutes {
   // not independently deep-linkable resources. Exam Simulation (a separate,
   // later feature) gets its own route namespace — nothing here is reused
   // for it.
+  /// Study setup for several topics (`extra`: a [StudySetupScope]) or, with
+  /// no `extra`, for all the student's topics.
+  static const studySessionSetup = '/study-session/setup';
   static const studySessionActive = '/study-session/active';
   static const studySessionSubmissionReview =
       '/study-session/submission-review';
@@ -180,6 +183,9 @@ abstract final class AppRoutes {
   static const _publicRoutes = {login, register, forgotPassword, resetPassword};
   static bool isPublic(String path) => _publicRoutes.contains(path);
 }
+
+/// What a study session started from [AppRoutes.studySessionSetup] covers.
+typedef StudySetupScope = ({List<String> topicIds, String label});
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = RouterRefreshNotifier();
@@ -313,6 +319,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           topicId: state.pathParameters['topicId']!,
           topicName: state.extra as String?,
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.studySessionSetup,
+        builder: (context, state) {
+          final scope = state.extra as StudySetupScope?;
+          return StudySessionSetupScreen(
+            topicIds: scope?.topicIds ?? const [],
+            topicName: scope?.label,
+          );
+        },
       ),
       GoRoute(
         path: AppRoutes.studySessionActive,

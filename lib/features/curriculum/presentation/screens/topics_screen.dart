@@ -51,6 +51,10 @@ class TopicsScreen extends ConsumerWidget {
               emptyMessage: l10n.curriculumNoTopics,
               onRetry: () async =>
                   ref.invalidate(programTreeProvider(programId)),
+              header: _PracticeAllButton(
+                topics: topics.value ?? const [],
+                label: subUnitName,
+              ),
               itemBuilder: (context, topic) => CurriculumListTile(
                 title: topic.name,
                 subtitle: topic.hasQuestions
@@ -73,6 +77,39 @@ class TopicsScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Starts one study session over every topic of this sub-unit that has
+/// questions (contract §A8 B7). Hidden when fewer than two qualify.
+class _PracticeAllButton extends StatelessWidget {
+  const _PracticeAllButton({required this.topics, required this.label});
+
+  final List<Topic> topics;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final ids = [
+      for (final topic in topics)
+        if (topic.hasQuestions) topic.id,
+    ];
+    if (ids.length < 2) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: MadeenSpace.sm),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          icon: const Icon(Icons.playlist_play),
+          label: Text(l10n.curriculumPracticeAllTopics),
+          onPressed: () => context.push(
+            AppRoutes.studySessionSetup,
+            extra: (topicIds: ids, label: label ?? l10n.curriculumTopicsLabel),
+          ),
+        ),
       ),
     );
   }

@@ -182,4 +182,39 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('a custom count and a difficulty are sent with the session', (
+    tester,
+  ) async {
+    useTallSurface(tester);
+    final repository = MockStudySessionRepository();
+    when(() => repository.startSession(any()))
+        .thenAnswer((_) async => const Result.failure(NetworkFailure()));
+
+    await tester.pumpWidget(wrapStudySessionScreen(repository: repository));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Custom'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '101');
+    await tester.tap(find.widgetWithText(FilledButton, 'Set'));
+    await tester.pumpAndSettle();
+    expect(find.text('From 1 to 100'), findsWidgets, reason: 'rejected');
+    await tester.enterText(find.byType(TextFormField), '15');
+    await tester.tap(find.widgetWithText(FilledButton, 'Set'));
+    await tester.pumpAndSettle();
+    expect(find.text('Custom (15)'), findsOneWidget);
+
+    await tester.tap(find.text('Hard'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Start session'));
+    await tester.pumpAndSettle();
+
+    final config =
+        verify(() => repository.startSession(captureAny())).captured.single
+            as SessionConfig;
+    expect(config.questionCount, 15);
+    expect(config.difficulty, QuestionDifficulty.hard);
+    expect(config.topicIds, ['topic-1']);
+  });
 }

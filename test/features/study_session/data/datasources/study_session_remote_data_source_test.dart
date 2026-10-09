@@ -64,6 +64,34 @@ void main() {
     });
   });
 
+  test('"all my topics" omits topicIds; several topics and difficulty are '
+      'sent', () async {
+    await source.startSession(
+      const SessionConfig(
+        topicName: 'All my topics',
+        questionCount: 15,
+        feedbackMode: FeedbackMode.immediate,
+      ),
+    );
+    expect(last().data, {'questionCount': 15, 'feedbackMode': 'IMMEDIATE'});
+
+    await source.startSession(
+      const SessionConfig(
+        topicIds: ['t1', 't2'],
+        topicName: 'Budgeting',
+        questionCount: 100,
+        feedbackMode: FeedbackMode.atEnd,
+        difficulty: QuestionDifficulty.hard,
+      ),
+    );
+    expect(last().data, {
+      'topicIds': ['t1', 't2'],
+      'questionCount': 100,
+      'feedbackMode': 'DEFERRED',
+      'difficulty': 'HARD',
+    });
+  });
+
   test('answer PATCHes the bank question id with choice and time', () async {
     await source.answerQuestion(
       sessionId: 's1',

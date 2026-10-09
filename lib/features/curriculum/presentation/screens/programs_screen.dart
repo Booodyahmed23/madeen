@@ -33,6 +33,16 @@ class ProgramsScreen extends ConsumerWidget {
               value: programs,
               emptyMessage: l10n.curriculumNoPrograms,
               onRetry: () async => ref.invalidate(programsProvider),
+              // Every topic in the student's plan at once (contract §A8 B7).
+              header: CurriculumListTile(
+                title: l10n.curriculumPracticeAllMyTopics,
+                subtitle: l10n.curriculumPracticeAllMyTopicsSubtitle,
+                leading: Icon(
+                  Icons.playlist_play,
+                  color: MadeenTokens.of(context).accentText,
+                ),
+                onTap: () => context.push(AppRoutes.studySessionSetup),
+              ),
               itemBuilder: (context, program) => CurriculumListTile(
                 title: program.name,
                 subtitle: program.description,

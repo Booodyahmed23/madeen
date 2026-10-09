@@ -74,10 +74,15 @@ class StudySessionNotifier extends Notifier<StudySessionState> {
   /// A session reopened from the server has no setup config; rebuild one
   /// from what it carries.
   SessionConfig _configFor(StudySession session) {
-    final first = session.questions.isEmpty ? null : session.questions.first;
     return SessionConfig(
-      topicId: first?.topic.id ?? session.topicIds.first,
-      topicName: first?.topic.name ?? '',
+      topicIds: session.topicIds,
+      // "Budgeting +2" for several topics, from the questions' own names.
+      topicName: switch ({for (final q in session.questions) q.topic.name}
+          .toList()) {
+        [] => '',
+        [final only] => only,
+        [final first, ...final rest] => '$first +${rest.length}',
+      },
       questionCount: session.requestedCount,
       feedbackMode: session.feedbackMode,
     );

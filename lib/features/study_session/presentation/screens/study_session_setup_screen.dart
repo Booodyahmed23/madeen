@@ -17,18 +17,21 @@ import '../../domain/entities/session_config.dart';
 import '../providers/study_session_notifier.dart';
 import '../providers/study_session_state.dart';
 
-/// Reached from a Topic in Curriculum (see AppRoutes.curriculumTopicDetail —
-/// this screen's route is the "leaf" the Curriculum flow ends at). The topic
-/// itself is read-only context here, not re-selectable — Curriculum browsing
-/// already covers "respect the curriculum hierarchy" for content selection.
+/// Reached from Curriculum: a Topic (see AppRoutes.curriculumTopicDetail),
+/// a whole sub-unit's topics, or "all my topics" (AppRoutes.studySessionSetup
+/// — no topic ids). The scope is read-only context here — Curriculum
+/// browsing already covers choosing content.
 class StudySessionSetupScreen extends ConsumerStatefulWidget {
   const StudySessionSetupScreen({
     super.key,
-    required this.topicId,
+    this.topicId,
+    this.topicIds = const [],
     this.topicName,
   });
 
-  final String topicId;
+  /// One topic, or [topicIds] for several; neither = all my topics.
+  final String? topicId;
+  final List<String> topicIds;
   final String? topicName;
 
   @override
@@ -40,20 +43,36 @@ class _StudySessionSetupScreenState
     extends ConsumerState<StudySessionSetupScreen> {
   int _questionCount = kQuestionCountOptions.first;
   FeedbackMode _feedbackMode = FeedbackMode.immediate;
+  QuestionDifficulty? _difficulty;
 
-  String get _topicDisplayName => widget.topicName ?? widget.topicId;
+  List<String> get _topicIds =>
+      widget.topicIds.isNotEmpty ? widget.topicIds : [?widget.topicId];
+
+  String _topicDisplayName(AppLocalizations l10n) =>
+      widget.topicName ??
+      (_topicIds.isEmpty ? l10n.studySessionAllMyTopics : _topicIds.first);
 
   void _start() {
     ref
         .read(studySessionNotifierProvider.notifier)
         .startSession(
           SessionConfig(
-            topicId: widget.topicId,
-            topicName: _topicDisplayName,
+            topicIds: _topicIds,
+            topicName: _topicDisplayName(AppLocalizations.of(context)!),
             questionCount: _questionCount,
             feedbackMode: _feedbackMode,
+            difficulty: _difficulty,
           ),
         );
+  }
+
+  /// Any count from 1 to 100 (contract §A3), beyond the presets.
+  Future<void> _pickCustomCount() async {
+    final count = await showDialog<int>(
+      context: context,
+      builder: (_) => _CustomCountDialog(initial: _questionCount),
+    );
+    if (count != null && mounted) setState(() => _questionCount = count);
   }
 
   @override
@@ -99,7 +118,7 @@ class _StudySessionSetupScreenState
                   MadeenSectionHeader(title: l10n.studySessionSetupTopicLabel),
                   const SizedBox(height: MadeenSpace.xs),
                   Text(
-                    _topicDisplayName,
+                    _topicDisplayName(l10n),
                     style: Theme.of(context).textTheme.headlineLarge!
                         .copyWith(color: MadeenTokens.of(context).ink),
                   ),
@@ -111,16 +130,49 @@ class _StudySessionSetupScreenState
                   Wrap(
                     spacing: MadeenSpace.xs,
                     runSpacing: MadeenSpace.xs,
-                    children: kQuestionCountOptions
-                        .map(
-                          (count) => ChoiceChip(
-                            label: Text('$count'),
-                            selected: _questionCount == count,
-                            onSelected: (_) =>
-                                setState(() => _questionCount = count),
-                          ),
-                        )
-                        .toList(),
+                    children: [
+                      for (final count in kQuestionCountOptions)
+                        ChoiceChip(
+                          label: Text('$count'),
+                          selected: _questionCount == count,
+                          onSelected: (_) =>
+                              setState(() => _questionCount = count),
+                        ),
+                      ChoiceChip(
+                        label: Text(
+                          kQuestionCountOptions.contains(_questionCount)
+                              ? l10n.studySessionSetupCustomCount
+                              : '${l10n.studySessionSetupCustomCount} '
+                                    '($_questionCount)',
+                        ),
+                        selected: !kQuestionCountOptions.contains(
+                          _questionCount,
+                        ),
+                        onSelected: (_) => _pickCustomCount(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: MadeenSpace.xl),
+                  MadeenSectionHeader(title: l10n.setupDifficultyLabel),
+                  const SizedBox(height: MadeenSpace.sm),
+                  MadeenChoicePills<QuestionDifficulty?>(
+                    choices: [
+                      MadeenChoice(value: null, label: l10n.setupDifficultyAny),
+                      MadeenChoice(
+                        value: QuestionDifficulty.easy,
+                        label: l10n.setupDifficultyEasy,
+                      ),
+                      MadeenChoice(
+                        value: QuestionDifficulty.medium,
+                        label: l10n.setupDifficultyMedium,
+                      ),
+                      MadeenChoice(
+                        value: QuestionDifficulty.hard,
+                        label: l10n.setupDifficultyHard,
+                      ),
+                    ],
+                    selected: _difficulty,
+                    onSelected: (value) => setState(() => _difficulty = value),
                   ),
                   const SizedBox(height: MadeenSpace.xl),
                   MadeenSectionHeader(
@@ -194,3 +246,68 @@ class _StudySessionSetupScreenState
 bool _isNoQuestions(AppFailure failure) =>
     failure is ValidationFailure &&
     failure.message.startsWith('No published questions');
+
+/// Asks for a question count from [kMinQuestionCount] to
+/// [kMaxQuestionCount]; pops it, or nothing on cancel. Owns its text
+/// controller, so it lives exactly as long as the dialog.
+class _CustomCountDialog extends StatefulWidget {
+  const _CustomCountDialog({required this.initial});
+
+  final int initial;
+
+  @override
+  State<_CustomCountDialog> createState() => _CustomCountDialogState();
+}
+
+class _CustomCountDialogState extends State<_CustomCountDialog> {
+  late final _controller = TextEditingController(text: '${widget.initial}');
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_formKey.currentState?.validate() ?? false) {
+      Navigator.of(context).pop(int.parse(_controller.text));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return AlertDialog(
+      title: Text(l10n.studySessionSetupCustomCountTitle),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          controller: _controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            helperText: l10n.studySessionSetupCustomCountHint,
+          ),
+          validator: (value) {
+            final n = int.tryParse(value ?? '');
+            return n == null || n < kMinQuestionCount || n > kMaxQuestionCount
+                ? l10n.studySessionSetupCustomCountHint
+                : null;
+          },
+          onFieldSubmitted: (_) => _submit(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.authCancel),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(l10n.studySessionSetupCustomCountConfirm),
+        ),
+      ],
+    );
+  }
+}

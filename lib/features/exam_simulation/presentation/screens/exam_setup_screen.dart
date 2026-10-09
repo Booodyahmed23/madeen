@@ -55,6 +55,7 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
   /// been preselected — done once, so it never overrides the user's pick.
   bool _defaultProgramApplied = false;
   int _questionCount = kExamQuestionCountOptions.first;
+  ExamDifficulty? _difficulty;
 
   /// Set when the selected scope has no topics with questions — nothing to
   /// start, so the API isn't called.
@@ -100,6 +101,7 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
             questionCount: _questionCount,
             duration: examDurationFor(_questionCount),
             topicIds: topicIds,
+            difficulty: _difficulty,
             topicNames: {
               for (final id in topicIds) id: tree.topicById(id)?.name ?? id,
             },
@@ -240,6 +242,29 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
                       l10n,
                       examDurationFor(_questionCount),
                     ),
+                  ),
+                  const SizedBox(height: MadeenSpace.xl),
+
+                  MadeenSectionHeader(title: l10n.setupDifficultyLabel),
+                  const SizedBox(height: MadeenSpace.sm),
+                  MadeenChoicePills<ExamDifficulty?>(
+                    choices: [
+                      MadeenChoice(value: null, label: l10n.setupDifficultyAny),
+                      MadeenChoice(
+                        value: ExamDifficulty.easy,
+                        label: l10n.setupDifficultyEasy,
+                      ),
+                      MadeenChoice(
+                        value: ExamDifficulty.medium,
+                        label: l10n.setupDifficultyMedium,
+                      ),
+                      MadeenChoice(
+                        value: ExamDifficulty.hard,
+                        label: l10n.setupDifficultyHard,
+                      ),
+                    ],
+                    selected: _difficulty,
+                    onSelected: (value) => setState(() => _difficulty = value),
                   ),
                   const SizedBox(height: MadeenSpace.xl),
 

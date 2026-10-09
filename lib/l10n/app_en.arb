@@ -1281,5 +1281,31 @@
         "type": "String"
       }
     }
-  }
+  },
+  "setupDifficultyLabel": "Difficulty",
+  "@setupDifficultyLabel": {},
+  "setupDifficultyAny": "Any",
+  "@setupDifficultyAny": {},
+  "setupDifficultyEasy": "Easy",
+  "@setupDifficultyEasy": {},
+  "setupDifficultyMedium": "Medium",
+  "@setupDifficultyMedium": {},
+  "setupDifficultyHard": "Hard",
+  "@setupDifficultyHard": {},
+  "studySessionSetupCustomCount": "Custom",
+  "@studySessionSetupCustomCount": {},
+  "studySessionSetupCustomCountTitle": "How many questions?",
+  "@studySessionSetupCustomCountTitle": {},
+  "studySessionSetupCustomCountHint": "From 1 to 100",
+  "@studySessionSetupCustomCountHint": {},
+  "studySessionSetupCustomCountConfirm": "Set",
+  "@studySessionSetupCustomCountConfirm": {},
+  "studySessionAllMyTopics": "All my topics",
+  "@studySessionAllMyTopics": {},
+  "curriculumPracticeAllTopics": "Practice all these topics",
+  "@curriculumPracticeAllTopics": {},
+  "curriculumPracticeAllMyTopics": "Practice all my topics",
+  "@curriculumPracticeAllMyTopics": {},
+  "curriculumPracticeAllMyTopicsSubtitle": "Questions from every topic in your plan.",
+  "@curriculumPracticeAllMyTopicsSubtitle": {}
 }

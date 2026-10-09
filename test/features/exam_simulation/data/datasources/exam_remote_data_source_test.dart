@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/network/api_client.dart';
 import 'package:mobile/features/exam_simulation/data/datasources/exam_remote_data_source.dart';
+import 'package:mobile/features/exam_simulation/domain/entities/exam_config.dart';
 
 import '../../exam_fixtures.dart';
 
@@ -53,6 +54,23 @@ void main() {
       'questionCount': 10,
       'durationMinutes': 15,
     });
+  });
+
+  test('a chosen difficulty is sent', () async {
+    await source.startExam(
+      ExamConfig(
+        programId: 'p',
+        programName: 'CMA',
+        partId: 'part',
+        partName: 'Part 1',
+        questionCount: 10,
+        duration: const Duration(minutes: 15),
+        topicIds: const ['t1'],
+        difficulty: ExamDifficulty.easy,
+      ),
+    );
+
+    expect((last().data as Map)['difficulty'], 'EASY');
   });
 
   test('answer, flag and submit use their paths and bodies', () async {

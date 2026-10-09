@@ -22,12 +22,16 @@ class AsyncListView<T> extends StatelessWidget {
     required this.itemBuilder,
     required this.onRetry,
     this.emptyMessage,
+    this.header,
   });
 
   final AsyncValue<List<T>> value;
   final Widget Function(BuildContext context, T item) itemBuilder;
   final Future<void> Function() onRetry;
   final String? emptyMessage;
+
+  /// Scrolls with the items, above them (only once they're loaded).
+  final Widget? header;
 
   @override
   Widget build(BuildContext context) {
@@ -48,8 +52,13 @@ class AsyncListView<T> extends StatelessWidget {
               MadeenSpace.xl,
             ),
             physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: items.length,
-            itemBuilder: (context, index) => itemBuilder(context, items[index]),
+            itemCount: items.length + (header == null ? 0 : 1),
+            itemBuilder: (context, index) {
+              final header = this.header;
+              if (header == null) return itemBuilder(context, items[index]);
+              if (index == 0) return header;
+              return itemBuilder(context, items[index - 1]);
+            },
           ),
         );
       },

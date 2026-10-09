@@ -23,6 +23,15 @@ const Map<int, Duration> _presetDurations = {
 Duration examDurationFor(int questionCount) =>
     _presetDurations[questionCount] ?? Duration(seconds: questionCount * 90);
 
+/// The API's question difficulty (`EASY` | `MEDIUM` | `HARD`) for an exam.
+enum ExamDifficulty {
+  easy,
+  medium,
+  hard;
+
+  String toWire() => name.toUpperCase();
+}
+
 /// What the student configured on Exam Setup: a Program + Part, optionally
 /// narrowed to a Unit and Sub-unit, and the question count (which sets the
 /// time limit). There is no question-order option: the server always
@@ -41,7 +50,11 @@ class ExamConfig {
     this.subUnitName,
     required this.topicIds,
     this.topicNames = const {},
+    this.difficulty,
   });
+
+  /// `null` = any difficulty.
+  final ExamDifficulty? difficulty;
 
   final String programId;
   final String programName;

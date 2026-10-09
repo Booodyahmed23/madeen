@@ -21,6 +21,7 @@ class ExamRemoteDataSource implements ExamDataSource {
       'topicIds': config.topicIds,
       'questionCount': config.questionCount,
       'durationMinutes': config.durationMinutes,
+      'difficulty': ?config.difficulty?.toWire(),
     },
     parse: _json,
   );

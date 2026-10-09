@@ -31,14 +31,14 @@ class _MockSession {
   _MockSession({
     required this.id,
     required this.feedbackMode,
-    required this.topicId,
+    required this.topicIds,
     required this.questions,
     required this.createdAt,
   });
 
   final String id;
   final FeedbackMode feedbackMode;
-  final String topicId;
+  final List<String> topicIds;
   final List<_MockQuestion> questions;
   final DateTime createdAt;
   String status = 'IN_PROGRESS';
@@ -63,8 +63,12 @@ class StudySessionMockDataSource implements StudySessionDataSource {
   @override
   Future<Json> startSession(SessionConfig config) async {
     await Future<void>.delayed(delay);
+    final topicIds = config.topicIds.isEmpty
+        ? const ['mock-all-topics']
+        : config.topicIds;
     final questions = List.generate(config.questionCount, (index) {
-      final questionId = 'mock-q-${config.topicId}-$index';
+      final topicId = topicIds[index % topicIds.length];
+      final questionId = 'mock-q-$topicId-$index';
       final choices = [
         for (var c = 0; c < _choiceLetters.length; c++)
           (
@@ -78,7 +82,7 @@ class StudySessionMockDataSource implements StudySessionDataSource {
         questionId: questionId,
         order: index,
         text: 'Sample question ${index + 1} about "${config.topicName}".',
-        topicId: config.topicId,
+        topicId: topicId,
         topicName: config.topicName,
         choices: choices,
         correctChoiceId: choices[index % choices.length].id,
@@ -87,7 +91,7 @@ class StudySessionMockDataSource implements StudySessionDataSource {
     final session = _MockSession(
       id: 'mock-session-${_sessionCounter++}',
       feedbackMode: config.feedbackMode,
-      topicId: config.topicId,
+      topicIds: topicIds,
       questions: questions,
       createdAt: DateTime.now().toUtc(),
     );
@@ -216,7 +220,7 @@ class StudySessionMockDataSource implements StudySessionDataSource {
       'userId': 'mock-user',
       'status': session.status,
       'feedbackMode': feedbackModeToWire(session.feedbackMode),
-      'topicIds': [session.topicId],
+      'topicIds': session.topicIds,
       'difficulty': null,
       'requestedCount': session.questions.length,
       'createdAt': session.createdAt.toIso8601String(),

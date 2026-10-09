@@ -19,9 +19,11 @@ class StudySessionRemoteDataSource implements StudySessionDataSource {
   Future<Json> startSession(SessionConfig config) => _apiClient.post(
     _base,
     data: {
-      'topicIds': [config.topicId],
+      // Omitted for "all my topics".
+      if (config.topicIds.isNotEmpty) 'topicIds': config.topicIds,
       'questionCount': config.questionCount,
       'feedbackMode': feedbackModeToWire(config.feedbackMode),
+      'difficulty': ?config.difficulty?.toWire(),
     },
     parse: _json,
   );
