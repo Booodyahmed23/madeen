@@ -28,6 +28,6 @@ class ExamResult {
   /// Server-reported completion status (e.g. "completed" vs "timed_out") —
   /// an opaque string rather than a client-defined enum, since the set of
   /// values is a backend decision this app doesn't get to make yet. See
-  /// EXAM_SIMULATION_API_REQUIREMENTS.md.
+  /// docs/MOBILE_API_CONTRACT.md §A4.
   final String completionStatus;
 }

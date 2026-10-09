@@ -1,6 +1,6 @@
 /// High-level summary shown at the top of the Performance Overview screen —
 /// always sourced from the repository, aggregated server-side once the
-/// backend exists (see PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md).
+/// backend exists (see docs/MOBILE_API_CONTRACT.md §A5).
 class PerformanceOverview {
   const PerformanceOverview({
     required this.totalAttempts,
@@ -25,7 +25,7 @@ class PerformanceOverview {
   final Duration averageTimePerQuestion;
 
   /// Accuracy = Correct / Answered × 100 — see
-  /// PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md. Guards the zero-attempts
+  /// docs/MOBILE_API_CONTRACT.md §A5. Guards the zero-attempts
   /// edge case.
   double get overallAccuracyPercent =>
       totalAnswered == 0 ? 0 : (totalCorrect / totalAnswered) * 100;

@@ -78,5 +78,4 @@ parallel class per screen.
 - **A resume/reload capability for an arbitrary historical attempt** beyond
   what Performance's own Attempt Details already provides — Attempt AI
   Insight reads the same `AttemptDetails` Attempt Details does, with the
-  same limitations (see `PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md`'s "Known
-  limitations").
+  same limitations (see docs/MOBILE_API_CONTRACT.md §A5).

@@ -3,10 +3,9 @@
 Results & Performance Analytics feature (Phase 6) — a read-only summary of
 what a student's Study Session and Exam Simulation attempts add up to:
 overall accuracy/score, per-topic strengths/weaknesses, and attempt
-history. See `PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md` at the `mobile/`
-root for the proposed backend contract; that backend module does not exist
-yet, so this feature runs on a deterministic local fixture by default (see
-`AppConfig.isPerformanceApiAvailable`).
+history, from the results API (docs/MOBILE_API_CONTRACT.md §A5) or — while
+`PERFORMANCE_API_AVAILABLE` is off — a deterministic local fixture plus the
+attempts recorded on the device.
 
 ## API mode (`PERFORMANCE_API_AVAILABLE`)
 
@@ -52,12 +51,11 @@ Concretely, this means:
 - The "Review answers" button on Attempt Details pushes to Study
   Session's/Exam Simulation's own existing routes (`AppRoutes.
   studySessionReview` / `AppRoutes.examPostReview`) rather than
-  duplicating a review UI — see `PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md`'s
-  "Known limitations" for what that button can and can't show for an
+  duplicating a review UI — see docs/MOBILE_API_CONTRACT.md §A5 for what that button can and can't show for an
   arbitrary historical attempt today.
 - `TopicPerformance` rows only ever come from Study Session data — Exam
   Simulation questions carry no topic/curriculum context by design (see
-  `EXAM_SIMULATION_API_REQUIREMENTS.md`), so there is nothing to aggregate
+  docs/MOBILE_API_CONTRACT.md §A4), so there is nothing to aggregate
   per-topic from an exam attempt. This is enforced in the mock data source
   and documented in the proposed API contract, not assumed silently by the
   UI.
@@ -67,8 +65,7 @@ Concretely, this means:
 `scorePercent` (Correct / Total Questions × 100, unanswered counts against
 it) and `accuracyPercent` (Correct / Answered × 100) are both present on
 `AttemptSummary` and shown side by side on Attempt Details — see
-`PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md`'s "The one accuracy formula"
-section for why these are deliberately different numbers, not a
+docs/MOBILE_API_CONTRACT.md §A5 for why these are deliberately different numbers, not a
 formula that silently changes between screens.
 
 ## The connected practice loop (Phase 13, mock mode only)

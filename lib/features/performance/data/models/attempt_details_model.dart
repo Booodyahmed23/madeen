@@ -31,7 +31,7 @@ class AttemptDetailsModel {
 
   /// The summary fields are flattened into the same JSON object as the
   /// detail-only fields (`unanswered`, `wrong`, ...) — see
-  /// PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md's `GET
+  /// docs/MOBILE_API_CONTRACT.md §A5's `GET
   /// /performance/attempts/:attemptId` response shape — so
   /// [AttemptSummaryModel.fromJson] can parse the same map directly.
   final AttemptSummaryModel summary;

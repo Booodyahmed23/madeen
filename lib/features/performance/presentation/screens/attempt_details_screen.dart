@@ -27,13 +27,12 @@ import '../widgets/topic_performance_tile.dart';
 /// feature's README), but those screens are driven by *their own* live
 /// notifier state, not by an arbitrary historical `attemptId` — there is no
 /// persistence layer yet that lets either feature reload an old attempt by
-/// id (see STUDY_SESSION_API_REQUIREMENTS.md / EXAM_SIMULATION_API_
-/// REQUIREMENTS.md's own "not yet wired" notes on `getAttempt`/session
+/// id (see docs/MOBILE_API_CONTRACT.md §A3 / docs/MOBILE_API_CONTRACT.md §A4's own "not yet wired" notes on `getAttempt`/session
 /// resume). The button is therefore most useful right after finishing a
 /// session/exam and drilling into its own fresh detail; for older history
 /// entries it navigates to the same screen, which gracefully shows its own
 /// "nothing to review" state rather than stale or wrong data — see
-/// PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md's "Known limitations".
+/// docs/MOBILE_API_CONTRACT.md §A5.
 class AttemptDetailsScreen extends ConsumerWidget {
   const AttemptDetailsScreen({super.key, required this.attemptId});
 

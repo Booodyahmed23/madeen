@@ -33,7 +33,7 @@ import '../providers/exam_state.dart';
 /// organized at, optionally narrowed to one Unit and Sub-unit. The time
 /// limit is not chosen separately: it follows from the question count (see
 /// [examDurationFor]) — both mobile-side placeholder presets until the
-/// backend defines the real values (EXAM_SIMULATION_API_REQUIREMENTS.md).
+/// backend defines the real values (docs/MOBILE_API_CONTRACT.md §A4).
 class ExamSetupScreen extends ConsumerStatefulWidget {
   const ExamSetupScreen({super.key});
 

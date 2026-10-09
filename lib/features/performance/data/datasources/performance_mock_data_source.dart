@@ -9,8 +9,8 @@ import '../models/performance_overview_model.dart';
 import '../models/topic_performance_model.dart';
 import 'performance_data_source.dart';
 
-/// Local sample data — used only because the real Performance Analytics API
-/// does not exist yet (see PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md). This
+/// Local sample data, used while `PERFORMANCE_API_AVAILABLE` is off (the
+/// real API is docs/MOBILE_API_CONTRACT.md §A5). This
 /// is a UI-development aid, **not** production content: a small, hand-written,
 /// internally-consistent fixture (see the class-level comment on each list
 /// below for how the numbers were derived), selected automatically when

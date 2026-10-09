@@ -4,7 +4,7 @@
 /// **These are mobile-side placeholders, not the official CMA/FMAA exam
 /// question counts or time limits.** The real per-part values are a
 /// certification business rule that must come from the backend once
-/// EXAM_SIMULATION_API_REQUIREMENTS.md's endpoints exist — and the server
+/// docs/MOBILE_API_CONTRACT.md §A4's endpoints exist — and the server
 /// stays authoritative for the duration of any attempt it starts (see
 /// [ExamAttempt.durationSeconds]).
 const List<int> kExamQuestionCountOptions = [10, 20, 50, 80];

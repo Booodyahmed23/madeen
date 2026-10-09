@@ -10,7 +10,7 @@ import 'ai_topic_insight.dart';
 /// supportingMetricPercent] and [AiTopicInsight]) is a value already shown
 /// on a Performance Analytics screen, carried here as supporting evidence —
 /// [AiAnalysis] itself never originates a score, accuracy, or count (see
-/// PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md for the one place those numbers
+/// docs/MOBILE_API_CONTRACT.md §A5 for the one place those numbers
 /// come from, and AI_ANALYSIS_API_REQUIREMENTS.md for how this entity's
 /// backend would be required to source them the same way).
 class AiAnalysis {

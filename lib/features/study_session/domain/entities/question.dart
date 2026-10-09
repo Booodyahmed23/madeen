@@ -6,7 +6,7 @@ import 'question_type.dart';
 /// exist on this type. Those only ever arrive via [QuestionFeedback] (after
 /// an immediate-feedback submission) or [QuestionReviewItem] (after the
 /// session ends), both fetched from the repository, never derived
-/// client-side. See mobile/STUDY_SESSION_API_REQUIREMENTS.md.
+/// client-side. See docs/MOBILE_API_CONTRACT.md §A3.
 class Question {
   const Question({
     required this.id,

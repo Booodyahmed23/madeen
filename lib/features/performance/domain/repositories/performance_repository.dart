@@ -8,8 +8,7 @@ import '../entities/trend_day.dart';
 
 /// The mobile app's only window onto Performance Analytics data —
 /// presentation code depends on this interface, never on a concrete data
-/// source (see PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md at the repo root
-/// of mobile/ for the proposed backend contract this mirrors). Deliberately
+/// source (the API it mirrors is docs/MOBILE_API_CONTRACT.md §A5). Deliberately
 /// read-only: this feature never writes attempt data — Study Session and
 /// Exam Simulation own that, independently (see this feature's README).
 abstract class PerformanceRepository {
@@ -28,7 +27,7 @@ abstract class PerformanceRepository {
 
   /// Paginated Attempt History, most recent first. `limit`/`offset` keep
   /// this scalable rather than loading the whole history into memory (see
-  /// PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md).
+  /// docs/MOBILE_API_CONTRACT.md §A5).
   Future<Result<AttemptHistoryPage>> getAttempts({
     PerformanceFilter filter = const PerformanceFilter(),
     int limit = 20,

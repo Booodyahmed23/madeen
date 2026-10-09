@@ -6,7 +6,7 @@ import 'topic_performance_model.dart';
 /// One completed Study Session or Exam Simulation attempt, recorded on this
 /// device — the mock-mode stand-in for what the backend's own submit
 /// endpoints will record once the Performance API exists (see
-/// PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md: Performance itself is
+/// docs/MOBILE_API_CONTRACT.md §A5: Performance itself is
 /// read-only, attempts are written by the practice flows). Only ever
 /// created by the app-level practice recorder, and only while
 /// `AppConfig.isPerformanceApiAvailable` is `false`.

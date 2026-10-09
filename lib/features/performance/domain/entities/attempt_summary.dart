@@ -42,7 +42,7 @@ class AttemptSummary {
   final Duration duration;
 
   /// Accuracy = Correct / Answered × 100 — see
-  /// PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md for why this is the one
+  /// docs/MOBILE_API_CONTRACT.md §A5 for why this is the one
   /// formula used everywhere accuracy is shown.
   double get accuracyPercent => answered == 0 ? 0 : (correct / answered) * 100;
 }

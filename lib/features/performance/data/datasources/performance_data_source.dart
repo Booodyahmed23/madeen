@@ -14,7 +14,7 @@ import 'performance_mock_data_source.dart';
 import 'performance_remote_data_source.dart';
 
 /// Shape both [PerformanceRemoteDataSource] (real backend, once it exists —
-/// see PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md) and
+/// see docs/MOBILE_API_CONTRACT.md §A5) and
 /// [PerformanceMockDataSource] (deterministic local sample data, used until
 /// then) implement. PerformanceRepositoryImpl depends on this interface,
 /// not on either concrete implementation — mirrors curriculum/study-session/
@@ -45,7 +45,7 @@ abstract class PerformanceDataSource {
 
 /// The single switch between real and sample Performance Analytics data.
 /// See AppConfig.isPerformanceApiAvailable and
-/// PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md — flipping the
+/// docs/MOBILE_API_CONTRACT.md §A5 — flipping the
 /// `PERFORMANCE_API_AVAILABLE` dart-define is the only change needed once
 /// the backend ships these endpoints.
 ///

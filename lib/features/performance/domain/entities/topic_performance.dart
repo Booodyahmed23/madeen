@@ -7,7 +7,7 @@
 ///
 /// Only ever populated from Study Session attempts: Exam Simulation
 /// questions never carry curriculum/topic context, by design (see
-/// EXAM_SIMULATION_API_REQUIREMENTS.md), so there is nothing to aggregate
+/// docs/MOBILE_API_CONTRACT.md §A4), so there is nothing to aggregate
 /// per-topic from an exam attempt.
 class TopicPerformance {
   const TopicPerformance({
@@ -32,14 +32,14 @@ class TopicPerformance {
   final Duration? averageTimePerQuestion;
 
   /// Accuracy = Correct / Answered × 100 — the one formula used everywhere
-  /// in this feature (see PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md).
+  /// in this feature (see docs/MOBILE_API_CONTRACT.md §A5).
   /// Guards the zero-answered edge case (a topic touched but never actually
   /// answered) rather than dividing by zero.
   double get accuracyPercent => answered == 0 ? 0 : (correct / answered) * 100;
 
   /// A simple, documented accuracy threshold — explicitly **not** a
   /// weighted "weakness score" algorithm (out of scope this phase; see
-  /// PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md and AI Analysis in
+  /// docs/MOBILE_API_CONTRACT.md §A5 and AI Analysis in
   /// ARCHITECTURE.md §17.2, which is a separate, later phase). A topic with
   /// no answered questions is neither strong nor needing practice — there
   /// is nothing to judge yet.

@@ -41,40 +41,32 @@ class AppConfig {
 
   static bool get isProduction => environmentName == 'production';
 
-  /// Whether the backend actually exposes the Curriculum endpoints this app
-  /// expects (see mobile/CURRICULUM_API_REQUIREMENTS.md) — as of Phase 3
-  /// they do not exist yet, so this defaults to `false` and the curriculum
-  /// feature falls back to `CurriculumMockDataSource`. Flip via
-  /// `--dart-define-from-file` (env/*.json) once the backend ships them —
-  /// no other code change is needed, see curriculum_providers.dart.
+  /// Whether to use the real Curriculum API (docs/MOBILE_API_CONTRACT.md
+  /// §A2) rather than `CurriculumMockDataSource`. Set per environment via
+  /// `--dart-define-from-file` (env/*.json); off by default, so a build
+  /// without a define runs on sample data.
   static const bool isCurriculumApiAvailable = bool.fromEnvironment(
     'CURRICULUM_API_AVAILABLE',
   );
 
-  /// Whether the backend exposes the Study Session / Question Bank
-  /// endpoints this app expects (see
-  /// mobile/STUDY_SESSION_API_REQUIREMENTS.md) — as of Phase 4 they do not
-  /// exist yet, so this defaults to `false` and the feature falls back to
-  /// `StudySessionMockDataSource`. Same flip-one-flag mechanism as
+  /// Whether to use the real Study Session API (docs/MOBILE_API_CONTRACT.md
+  /// §A3) rather than `StudySessionMockDataSource`. Same mechanism as
   /// [isCurriculumApiAvailable].
   static const bool isStudySessionApiAvailable = bool.fromEnvironment(
     'STUDY_SESSION_API_AVAILABLE',
   );
 
-  /// Whether the backend exposes the Exam Simulation endpoints this app
-  /// expects (see mobile/EXAM_SIMULATION_API_REQUIREMENTS.md) — as of
-  /// Phase 5 they do not exist yet, so this defaults to `false` and the
-  /// feature falls back to `ExamMockDataSource`. Same flip-one-flag
-  /// mechanism as [isCurriculumApiAvailable].
+  /// Whether to use the real Exam Simulation API
+  /// (docs/MOBILE_API_CONTRACT.md §A4) rather than `ExamMockDataSource`.
+  /// Same mechanism as [isCurriculumApiAvailable].
   static const bool isExamSimulationApiAvailable = bool.fromEnvironment(
     'EXAM_SIMULATION_API_AVAILABLE',
   );
 
-  /// Whether the backend exposes the Performance Analytics endpoints this
-  /// app expects (see mobile/PERFORMANCE_ANALYTICS_API_REQUIREMENTS.md) —
-  /// as of Phase 6 they do not exist yet, so this defaults to `false` and
-  /// the feature falls back to `PerformanceMockDataSource`. Same
-  /// flip-one-flag mechanism as [isCurriculumApiAvailable].
+  /// Whether to use the real results API (docs/MOBILE_API_CONTRACT.md §A5)
+  /// rather than `PerformanceMockDataSource` — which, when off, also makes
+  /// the app record finished attempts on the device. Same mechanism as
+  /// [isCurriculumApiAvailable].
   static const bool isPerformanceApiAvailable = bool.fromEnvironment(
     'PERFORMANCE_API_AVAILABLE',
   );
@@ -93,11 +85,9 @@ class AppConfig {
     'AI_ANALYSIS_API_AVAILABLE',
   );
 
-  /// Whether the backend exposes the Notifications / Study Reminders
-  /// endpoints this app expects (see mobile/NOTIFICATIONS_API_
-  /// REQUIREMENTS.md) — as of Phase 8 they do not exist yet, so this
-  /// defaults to `false` and the feature falls back to
-  /// `NotificationsMockDataSource`. Same flip-one-flag mechanism as
+  /// Whether to use the real Notifications / Study Reminders API
+  /// (docs/MOBILE_API_CONTRACT.md §A9) rather than
+  /// `NotificationsMockDataSource`. Same mechanism as
   /// [isCurriculumApiAvailable].
   static const bool isNotificationsApiAvailable = bool.fromEnvironment(
     'NOTIFICATIONS_API_AVAILABLE',
@@ -127,9 +117,9 @@ class AppConfig {
     'COURSE_API_AVAILABLE',
   );
 
-  /// Whether the backend exposes push device registration (`POST /devices`,
-  /// `POST /devices/unregister` — contract Part B). Off until the API
-  /// ships it.
+  /// Whether to register for push notifications (`POST /devices`,
+  /// docs/MOBILE_API_CONTRACT.md §A10). Push also needs Firebase to start
+  /// (see main.dart); otherwise the app runs without it.
   static const bool isPushApiAvailable = bool.fromEnvironment(
     'PUSH_API_AVAILABLE',
   );
