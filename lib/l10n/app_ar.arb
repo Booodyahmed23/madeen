@@ -522,5 +522,6 @@
   "devicesSignOutAllConfirmTitle": "تسجيل خروج جميع الأجهزة الأخرى؟",
   "devicesSignOutAllConfirmMessage": "سيتم تسجيل خروج كل الأجهزة باستثناء هذا الجهاز فورًا.",
   "devicesSignedOutCount": "{count, plural, =0{لم يكن أي جهاز آخر مسجّل الدخول.} =1{تم تسجيل خروج جهاز واحد.} =2{تم تسجيل خروج جهازين.} few{تم تسجيل خروج {count} أجهزة.} many{تم تسجيل خروج {count} جهازًا.} other{تم تسجيل خروج {count} جهاز.}}",
-  "errorSessionUnknown": "تعذّر العثور على جلستك. يرجى تسجيل الدخول مرة أخرى."
+  "errorSessionUnknown": "تعذّر العثور على جلستك. يرجى تسجيل الدخول مرة أخرى.",
+  "studySessionQuestionReference": "المرجع {reference}"
 }

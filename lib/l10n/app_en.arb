@@ -1273,5 +1273,13 @@
     }
   },
   "errorSessionUnknown": "We couldn't find your session. Please log in again.",
-  "@errorSessionUnknown": {}
+  "@errorSessionUnknown": {},
+  "studySessionQuestionReference": "Ref. {reference}",
+  "@studySessionQuestionReference": {
+    "placeholders": {
+      "reference": {
+        "type": "String"
+      }
+    }
+  }
 }

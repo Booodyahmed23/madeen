@@ -67,6 +67,8 @@ void main() {
 
       expect(find.text('What is 2 + 2?'), findsOneWidget);
       expect(find.text('1 / 2'), findsOneWidget);
+      // The bank reference (question code) above the stem.
+      expect(find.text('REF. #1'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
       expect(find.text('4'), findsOneWidget);
     },

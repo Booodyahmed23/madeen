@@ -152,6 +152,17 @@ class ActiveStudySessionScreen extends ConsumerWidget {
                         MadeenSpace.lg,
                       ),
                       children: [
+                        if (question.reference case final reference?) ...[
+                          Text(
+                            l10n
+                                .studySessionQuestionReference(reference)
+                                .toUpperCase(),
+                            style: MadeenType.eyebrow(context).copyWith(
+                              color: MadeenTokens.of(context).inkTertiary,
+                            ),
+                          ),
+                          const SizedBox(height: MadeenSpace.xs),
+                        ],
                         MadeenContentText(
                           question.text,
                           style: MadeenType.question.copyWith(

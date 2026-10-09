@@ -102,6 +102,8 @@ class SessionQuestion {
         AnswerChoice(id: choice.id, text: choice.text, order: index),
     ],
     difficulty: difficulty,
+    code: code,
+    losCode: losCode,
   );
 }
 

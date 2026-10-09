@@ -14,6 +14,8 @@ class Question {
     required this.type,
     required this.choices,
     this.difficulty,
+    this.code,
+    this.losCode,
   });
 
   final String id;
@@ -21,4 +23,15 @@ class Question {
   final QuestionType type;
   final List<AnswerChoice> choices;
   final String? difficulty;
+
+  /// The bank's question number and LOS (learning outcome statement) code
+  /// — a reference students can quote when asking about a question.
+  final int? code;
+  final String? losCode;
+
+  /// `#101 · LOS 1.A`, or `null` when there's neither.
+  String? get reference {
+    final parts = [if (code != null) '#$code', ?losCode];
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
 }
